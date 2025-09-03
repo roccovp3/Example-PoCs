@@ -11,6 +11,7 @@
   })
 
 // https://github.com/google/highwayhash/blob/master/highwayhash/tsc_timer.h
+// Returns the current TSC value
 #define _timer_start()                                                         \
   ({                                                                           \
     unsigned long long t;                                                      \
@@ -28,6 +29,7 @@
     t;                                                                         \
   })
 
+// Returns the current TSC value
 #define _timer_end()                                                           \
   ({                                                                           \
     unsigned long long t;                                                      \

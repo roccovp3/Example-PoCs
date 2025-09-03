@@ -14,6 +14,7 @@
 #include <x86intrin.h>
 
 #define PAGE_SIZE 4096
+#define CACHE_LINE_SIZE 64
 #define SYMBOL_CNT (1 << (sizeof(char) * 8))
 
 #define EPOCH_LENGTH 2000000. // A very conservative epoch length
@@ -80,7 +81,7 @@ void flush_reload_send(uint64_t start_tsc, size_t msg_len, uint8_t *pages) {
         // Print the epoch information
         uint64_t now = _rdtsc();
         uint64_t epoch_id = (now - start_tsc) / EPOCH_LENGTH;
-        printf("EPOCH: %" PRIu64 "; Transmitting: '%c' (ASCII=%x)\n", epoch_id,
+        printf("EPOCH: %" PRIu64 "; Transmitting: '%c' (ASCII=%#x)\n", epoch_id,
                msg[i], msg[i]);
     }
 }
@@ -90,7 +91,6 @@ void flush_reload_send(uint64_t start_tsc, size_t msg_len, uint8_t *pages) {
 //  ^^^^^^^^^^^^^^                ^^^^^^^^^^^^^^
 void flush_reload_recv(uint64_t start_tsc, size_t msg_len, uint8_t *pages,
                        uint64_t threshold) {
-
     uint64_t next_flush = start_tsc,
              next_reload = start_tsc + 2 * EPOCH_LENGTH / 3;
     char *recv_str = calloc(msg_len + 1, sizeof(*recv_str));
@@ -104,7 +104,7 @@ void flush_reload_recv(uint64_t start_tsc, size_t msg_len, uint8_t *pages,
         // Receiver flushes
         busy_wait_until(next_flush);
         next_flush += EPOCH_LENGTH;
-        for (size_t j = 0; j < SYMBOL_CNT; j++) {
+        for (size_t j = 0; j < SYMBOL_CNT; j++) { // SYMBOL_CNT=256
             _mm_clflush(pages + j * PAGE_SIZE);
         }
 
@@ -114,7 +114,7 @@ void flush_reload_recv(uint64_t start_tsc, size_t msg_len, uint8_t *pages,
 
         // Receiver reloads
         unsigned char raw_c = '\0';
-        for (size_t j = 0; j < SYMBOL_CNT; j++) {
+        for (size_t j = 0; j < SYMBOL_CNT; j++) { // SYMBOL_CNT=256
             uint64_t start = _timer_start();
             _maccess(pages + j * PAGE_SIZE);
             uint64_t lat = _timer_end() - start;
@@ -129,7 +129,7 @@ void flush_reload_recv(uint64_t start_tsc, size_t msg_len, uint8_t *pages,
         uint64_t epoch_id = (now - start_tsc) / EPOCH_LENGTH;
         if (raw_c) {
             unsigned char c = isprint(raw_c) ? raw_c : '?';
-            printf("EPOCH: %" PRIu64 "; Receiving: '%c' (ASCII=%x)\n", epoch_id,
+            printf("EPOCH: %" PRIu64 "; Receiving: '%c' (ASCII=%#x)\n", epoch_id,
                    c, raw_c);
             // This check is necessary because "wait_until" can overshoot and
             // skip an epoch
@@ -141,6 +141,7 @@ void flush_reload_recv(uint64_t start_tsc, size_t msg_len, uint8_t *pages,
         }
     }
 
+    printf("-----------------------------------------\n");
     printf("Expecting: %s\n", msg);
     printf("Received:  %s\n", recv_str);
     free(recv_str);
@@ -150,8 +151,10 @@ int main() {
     int ret = 0;
     // Threshold for determining cache hits and misses
     uint64_t threshold = calibrate_latency();
+    printf("-----------------------------------------\n");
 
     // Create read-only shared pages for Flush+Reload
+    // SYMBOL_CNT=256
     uint8_t *pages = mmap(NULL, PAGE_SIZE * SYMBOL_CNT, PROT_READ,
                           MAP_SHARED | MAP_ANONYMOUS, -1, 0);
     if (pages == MAP_FAILED) {
