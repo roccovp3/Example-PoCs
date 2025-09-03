@@ -1,5 +1,6 @@
 #pragma once
 
+// Load from a virtual address "P"
 #define _maccess(P)                                                            \
   ({                                                                           \
     typeof(*(P)) _NO_USE;                                                      \
