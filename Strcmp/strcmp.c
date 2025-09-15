@@ -29,12 +29,11 @@ uint64_t calc_median(uint64_t *data, size_t len) {
 
 // Naive strcmp for demonstration purpose only
 bool naive_str_equal(const char *s1, const char *s2) {
-    size_t i;
-    for (i = 0; s1[i] && s2[i]; i++) {
-        if (s1[i] != s2[i]) return false;
+    for (; *s1 && *s2; s1++, s2++) {
+        if (*s1 != *s2) return false;
         _mm_lfence(); // Artificially serialize iterations to amplify the signal
     }
-    return s1[i] == s2[i];
+    return *s1 == *s2;
 }
 
 #define REP 2000000
