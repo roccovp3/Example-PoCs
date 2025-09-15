@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <assert.h>
 #include <string.h>
 #include <x86intrin.h>
@@ -26,16 +27,17 @@ uint64_t calc_median(uint64_t *data, size_t len) {
     }
 }
 
-// Naive strncmp for demonstration purpose only
-int naive_strncmp(const char *s1, const char *s2, size_t n) {
-    for (size_t i = 0; i < n && s1[i] && s2[i]; i++) {
-        if (s1[i] != s2[i]) return 0;
+// Naive strcmp for demonstration purpose only
+bool naive_str_equal(const char *s1, const char *s2) {
+    size_t i;
+    for (i = 0; s1[i] && s2[i]; i++) {
+        if (s1[i] != s2[i]) return false;
         _mm_lfence(); // Artificially serialize iterations to amplify the signal
     }
-    return 1;
+    return s1[i] == s2[i];
 }
 
-#define REP 10000000
+#define REP 2000000
 #define BUF_LEN 10
 #define THRESHOLD 5
 
@@ -51,7 +53,7 @@ int main() {
             guess[i] = '0' + g;
             for (size_t c = 0; c < REP; c++) {
                 uint64_t start = _timer_start();
-                int ret = naive_strncmp(secret, guess, 12);
+                bool ret = naive_str_equal(secret, guess);
                 uint64_t lat = _timer_end() - start;
                 lats[c] = lat;
 
@@ -87,7 +89,7 @@ int main() {
             break;
         }
     }
-    printf("Secret = %s;\nGuessed secret = %s\n", secret, guess);
+    printf("Secret string = %s\nGuessed secret = %s\n", secret, guess);
 
     free(guess);
     free(lats);
