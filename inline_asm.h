@@ -52,3 +52,13 @@
                          : "=a"(t)::"rdx", "memory", "cc");                    \
     t;                                                                         \
   })
+
+// "Use" variable R so that the compiler won't optimize it away
+#define _no_opt(R)                                                             \
+  ({                                                                           \
+    typeof((R)) _R = (R);                                                      \
+    __asm__ __volatile__("xor %0, %1\n"                                        \
+                         : "=r"(_R)                                            \
+                         : "r"(_R)                                             \
+                         : "memory");                                          \
+  })

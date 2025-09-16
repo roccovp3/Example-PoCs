@@ -55,12 +55,7 @@ int main() {
                 bool ret = naive_str_equal(secret, guess);
                 uint64_t lat = _timer_end() - start;
                 lats[c] = lat;
-
-                // Prevent compiler from optimizing away strncmp
-                __asm__ __volatile__("xor %0, %0\n\t"
-                                     : "=r"(ret)
-                                     : "r"(ret)
-                                     : "memory");
+                _no_opt(ret); // Prevent compiler from optimizing away strncmp
             }
 
             uint64_t median = calc_median(lats, REP);
