@@ -1,5 +1,5 @@
 CC     := gcc
-CFLAGS := -O1 -g -Werror -I.. -Wall -Wno-unused-variables -Wno-unused-parameter -Wextra
+CFLAGS := -O1 -g -Werror -I.. -Wall -Wno-unused-variable -Wno-unused-parameter -Wextra
 
 SRCS   := $(wildcard *.c)
 BINS   := $(SRCS:.c=.bin)
