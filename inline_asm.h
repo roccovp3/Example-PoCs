@@ -53,6 +53,13 @@
     t;                                                                         \
   })
 
+#define _time_maccess(P)                                                       \
+    ({                                                                         \
+        unsigned long long t = _timer_start();                                 \
+        _maccess(P);                                                           \
+        _timer_end() - t;                                                      \
+    })
+
 // "Use" variable R so that the compiler won't optimize it away
 #define _no_opt(R)                                                             \
   ({                                                                           \
@@ -62,3 +69,4 @@
                          : "r"(_R)                                             \
                          : "memory");                                          \
   })
+
