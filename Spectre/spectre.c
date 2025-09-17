@@ -89,9 +89,9 @@ void decode_flush_reload_state(char *c, uint64_t *hits, size_t cnt) {
 
 // ====== Business ======
 typedef struct {
-    uint8_t item_type;
-    char item_name[64];
-    char item_desc[447];
+    uint8_t type;
+    char name[64];
+    char desc[447];
 } Item; // 512B
 
 typedef struct {
@@ -141,10 +141,10 @@ SalesRecords *init_sales_records() {
     memset(items, 0, sizeof(Item) * MAX_NUM_ITEMS);
     memset(orders, 0, sizeof(Order) * NUM_ORDERS);
 
-    items[0] = (Item){.item_type=1, .item_name="Lemon", .item_desc="Make some lemonade"};
-    items[1] = (Item){.item_type=1, .item_name="Cake",  .item_desc="Black forest cake"};
-    items[2] = (Item){.item_type=2, .item_name="Book",  .item_desc="Useful for enchanting"};
-    items[3] = (Item){.item_type=3, .item_name="Beer",  .item_desc="Cheers!"};
+    items[0] = (Item){.type=1, .name="Lemon", .desc="Make some lemonade"};
+    items[1] = (Item){.type=1, .name="Cake",  .desc="Black forest cake"};
+    items[2] = (Item){.type=2, .name="Book",  .desc="Useful for enchanting"};
+    items[3] = (Item){.type=3, .name="Beer",  .desc="Cheers!"};
     // 252 more placeholder items
 
     orders[0].item_id = 2;
@@ -176,7 +176,7 @@ uint8_t lookup_item_id(SalesRecords *recs, size_t order_id) {
     if (order_id < recs->num_orders) {
         uint8_t item_id = recs->orders[order_id].item_id; // Access load
         if (item_id < recs->num_items) {
-            return recs->items[item_id].item_type; // Transmit load
+            return recs->items[item_id].type; // Transmit load
         }
     }
     return 0; // Invalid item
@@ -233,7 +233,7 @@ void attacker(SalesRecords *records) {
 
                 // The "Reload" part of Flush+Reload
                 // Can be replaced with Prime+Probe
-                uint8_t *ptr = &records->items[idx].item_type;
+                uint8_t *ptr = &records->items[idx].type;
                 hits[idx] += (_time_maccess(ptr) <= threshold);
             }
         }
