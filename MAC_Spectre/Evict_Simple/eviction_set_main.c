@@ -1,0 +1,29 @@
+#include "arch.h"
+#include "eviction_set.h"
+#include "eviction_set_generation.h"
+#include <assert.h>
+
+// this main will return you the eviction set. Run it with the run_cmd function
+// guess, make argv[1], the malicious address
+char *main(int argc, char *argv[]) {
+    assert(argc > 1 && "I need the malicious address");
+
+    uint64_t malicious_index = atoi(argv[1]);
+
+    // L1 Eviction set
+    cache_line_set_t *L1_evict =
+        find_L1_congruent_cache_lines((uint8_t *)malicious_index, PAGE_SIZE);
+
+    // L2 Eviction set
+    cache_line_set_t *l2_congruent_cache_lines_1 =
+        find_L2_eviction_set_using_timer((uint8_t *)malicious_index);
+    cache_line_set_t *l2_congruent_cache_lines_2 =
+        find_L2_eviction_set_using_timer((uint8_t *)malicious_index);
+
+    cache_line_set_t *l2_congruent_cache_lines = merge_two_cache_line_sets(
+        l2_congruent_cache_lines_1, l2_congruent_cache_lines_2);
+
+    // L3 Eviction Set
+
+    return 0;
+}
