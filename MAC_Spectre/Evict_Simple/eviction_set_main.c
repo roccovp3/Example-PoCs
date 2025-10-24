@@ -8,7 +8,7 @@
 char *main(int argc, char *argv[]) {
     assert(argc > 1 && "I need the malicious address");
 
-    uint64_t malicious_index = atoi(argv[1]);
+    uint64_t malicious_index = strtoul(argv[1], NULL, 16);
 
     // L1 Eviction set
     cache_line_set_t *L1_evict =
