@@ -9,6 +9,7 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include "timer.h"
 
 cache_line_set_t *cache_line_set_traversed_by_child = NULL;
 eviction_set_t *eviction_set_traversed_by_child = NULL;
@@ -111,12 +112,15 @@ void child_access_addr_func(void *core_id) {
         asm volatile("isb\n\t");
         uint64_t ts = 0;
         if (child_record) {
-            asm volatile("isb\n\t"
-                         "mrs %[ts], S3_2_c15_c0_0\n\t"
-                         : [ts] "=r"(ts)
-                         :
-                         : "memory");
+        //     asm volatile("isb\n\t"
+        //                  "mrs %[ts], S3_2_c15_c0_0\n\t"
+        //                  : [ts] "=r"(ts)
+        //                  :
+        //                  : "memory");
+            asm volatile("isb\n\t" ::: "memory");
+            ts = timer_now();
         }
+        
 
         asm volatile(
             "dmb sy\n\t"
@@ -167,17 +171,20 @@ void child_naive_traverse_set_func(void *core_id) {
         /*val = val ^
          * *(uint64_t*)cache_line_set_traversed_by_child->cache_lines[i];*/
         uint64_t t1;
-        asm volatile("isb\n\t"
-                     "mrs %[t], S3_2_c15_c0_0\n\t"
-                     : [t] "=r"(t1));
+        // asm volatile("isb\n\t"
+        //              "mrs %[t], S3_2_c15_c0_0\n\t"
+        //              : [t] "=r"(t1));
+        t1 = timer_now();
 
         single_traverse_fwd(eviction_set_traversed_by_child,
                             traverse_rep_count);
 
         uint64_t t2;
-        asm volatile("isb\n\t"
-                     "mrs %[t], S3_2_c15_c0_0\n\t"
-                     : [t] "=r"(t2));
+        // asm volatile("isb\n\t"
+        //              "mrs %[t], S3_2_c15_c0_0\n\t"
+        //              : [t] "=r"(t2));
+
+        t2 = timer_now();
 
         traverse_duration = t2 - t1;
         /*single_traverse_bwd(eviction_set_traversed_by_child, 1);*/

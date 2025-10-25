@@ -210,21 +210,21 @@ float P1S1P1_timer(int evrate_to_ret, uint8_t *pivot_addr,
         // set access and the subsequent load
         for (volatile int k = 0; k < 1000; k++) {
         }
-        // latency = timer_ticks_to_ns(timer_time_maccess((void *)pivot_addr));
-        // volatile uint8_t tmpval = *(volatile uint8_t *)pivot_addr;
-        // load_val = tmpval;
+        latency = timer_ticks_to_ns(timer_time_maccess((void *)pivot_addr));
+        volatile uint8_t tmpval = *(volatile uint8_t *)pivot_addr;
+        load_val = tmpval;
 
-        asm volatile("dsb sy\n\t"
-                     "isb\n\t"
-                     "mrs x9, S3_2_c15_c0_0\n\t"
-                     "ldrb %w[val], [%[addr]]\n\t"
-                     "isb\n\t"
-                     "mrs x10, S3_2_c15_c0_0\n\t"
-                     "sub %[latency], x10, x9\n\t"
-                     "dsb sy\n\t"
-                     : [latency] "=r"(latency), [val] "=r"(load_val)
-                     : [addr] "r"(pivot_addr)
-                     : "x9", "x10");
+        // asm volatile("dsb sy\n\t"
+        //              "isb\n\t"
+        //              "mrs x9, S3_2_c15_c0_0\n\t"
+        //              "ldrb %w[val], [%[addr]]\n\t"
+        //              "isb\n\t"
+        //              "mrs x10, S3_2_c15_c0_0\n\t"
+        //              "sub %[latency], x10, x9\n\t"
+        //              "dsb sy\n\t"
+        //              : [latency] "=r"(latency), [val] "=r"(load_val)
+        //              : [addr] "r"(pivot_addr)
+        //              : "x9", "x10");
 
         
 
@@ -261,38 +261,61 @@ float P1S1P1_timer_naive_traverse(int evrate_to_ret, uint8_t *pivot_addr,
 
     for (int i = 0; i < num_counts; i++) {
         // load
+        // asm volatile(
+        //     // load
+        //     "dsb sy\n\t"
+        //     "ldrb %w[val], [%[pivot_addr]]\n\t"
+        //     "dsb sy\n\t"
+        //     "isb\n\t"
+
+        //     // traverse the eviction set
+        //     "L_fwd_traverse_P1S1P1_timer_naive_traverse:\n\t"
+        //     "ldr %[fwd_iter], [%[fwd_iter]]\n\t"
+        //     "cbnz %[fwd_iter], L_fwd_traverse_P1S1P1_timer_naive_traverse\n\t"
+        //     "dsb sy\n\t"
+
+        //     // measure the 2nd load
+        //     "dsb sy\n\t"
+        //     "isb\n\t"
+        //     "mrs x9, S3_2_c15_c0_0\n\t"
+        //     "ldrb %w[val], [%[pivot_addr]]\n\t"
+        //     "isb\n\t"
+        //     "mrs x10, S3_2_c15_c0_0\n\t"
+        //     "sub %[latency], x10, x9\n\t"
+        //     "dsb sy\n\t"
+        //     : [val] "+r"(load_val), [latency] "=r"(latency)
+        //     : [pivot_addr] "r"(pivot_addr), [fwd_iter] "r"(
+        //                                         eviction_set->list_of_cachelines
+        //                                             ->head)
+        //     : "x9", "x10",
+        //       "memory"); // memory must be added to clobbed list, o/w weird bug
+
         asm volatile(
-            // load
-            "dsb sy\n\t"
-            "ldrb %w[val], [%[pivot_addr]]\n\t"
-            "dsb sy\n\t"
-            "isb\n\t"
+        // load
+        "dsb sy\n\t"
+        "ldrb %w[val], [%[pivot_addr]]\n\t"
+        "dsb sy\n\t"
+        "isb\n\t"
 
-            // traverse the eviction set
-            "L_fwd_traverse_P1S1P1_timer_naive_traverse:\n\t"
-            "ldr %[fwd_iter], [%[fwd_iter]]\n\t"
-            "cbnz %[fwd_iter], L_fwd_traverse_P1S1P1_timer_naive_traverse\n\t"
-            "dsb sy\n\t"
+        // traverse the eviction set
+        "L_fwd_traverse_P1S1P1_timer_naive_traverse:\n\t"
+        "ldr %[fwd_iter], [%[fwd_iter]]\n\t"
+        "cbnz %[fwd_iter], L_fwd_traverse_P1S1P1_timer_naive_traverse\n\t"
+        "dsb sy\n\t"
+        :
+        [val] "+r"(load_val),
+        [fwd_iter] "+r"(eviction_set->list_of_cachelines->head)
+        :
+        [pivot_addr] "r"(pivot_addr)
+        : "memory");
 
-            // measure the 2nd load
-            "dsb sy\n\t"
-            "isb\n\t"
-            "mrs x9, S3_2_c15_c0_0\n\t"
-            "ldrb %w[val], [%[pivot_addr]]\n\t"
-            "isb\n\t"
-            "mrs x10, S3_2_c15_c0_0\n\t"
-            "sub %[latency], x10, x9\n\t"
-            "dsb sy\n\t"
-            : [val] "+r"(load_val), [latency] "=r"(latency)
-            : [pivot_addr] "r"(pivot_addr), [fwd_iter] "r"(
-                                                eviction_set->list_of_cachelines
-                                                    ->head)
-            : "x9", "x10",
-              "memory"); // memory must be added to clobbed list, o/w weird bug
+
+        latency = timer_ticks_to_ns(timer_time_maccess((void *)pivot_addr));
 
         total_evict += (latency > threshold);
         /*flush_cache();*/
     }
+
 
     delete_eviction_set(eviction_set);
 
@@ -426,17 +449,19 @@ float P1S2P1_timer(uint8_t *pivot_addr, cache_line_set_t *evset_cache_lines) {
         for (volatile int k = 0; k < 1000; k++) {
         }
 
-        asm volatile("dsb sy\n\t"
-                     "isb\n\t"
-                     "mrs x9, S3_2_c15_c0_0\n\t"
-                     "ldrb %w[out], [%[addr]]\n\t"
-                     "isb\n\t"
-                     "mrs x10, S3_2_c15_c0_0\n\t"
-                     "sub %[latency], x10, x9\n\t"
-                     "dsb sy\n\t"
-                     : [latency] "=r"(latency), [out] "=r"(load_val)
-                     : [addr] "r"(pivot_addr)
-                     : "x9", "x10");
+        // asm volatile("dsb sy\n\t"
+        //              "isb\n\t"
+        //              "mrs x9, S3_2_c15_c0_0\n\t"
+        //              "ldrb %w[out], [%[addr]]\n\t"
+        //              "isb\n\t"
+        //              "mrs x10, S3_2_c15_c0_0\n\t"
+        //              "sub %[latency], x10, x9\n\t"
+        //              "dsb sy\n\t"
+        //              : [latency] "=r"(latency), [out] "=r"(load_val)
+        //              : [addr] "r"(pivot_addr)
+        //              : "x9", "x10");
+
+        latency = timer_ticks_to_ns(timer_time_maccess((void *)pivot_addr));
 
         total_l2_evict += (latency > L2_MISS_MIN_LATENCY);
         /*flush_cache();*/
@@ -543,17 +568,19 @@ float P1S1Y1P1_timer_naive_traverse(int evrate_to_ret, uint8_t *pivot_addr,
         victim_func(victim_addr);
 
         // measure the 2nd load
-        asm volatile("dsb sy\n\t"
-                     "isb\n\t"
-                     "mrs x9, S3_2_c15_c0_0\n\t"
-                     "ldrb %w[val], [%[pivot_addr]]\n\t"
-                     "isb\n\t"
-                     "mrs x10, S3_2_c15_c0_0\n\t"
-                     "sub %[latency], x10, x9\n\t"
-                     "dsb sy\n\t"
-                     : [val] "+r"(load_val), [latency] "=r"(latency)
-                     : [pivot_addr] "r"(pivot_addr)
-                     : "x9", "x10", "memory");
+        // asm volatile("dsb sy\n\t"
+        //              "isb\n\t"
+        //              "mrs x9, S3_2_c15_c0_0\n\t"
+        //              "ldrb %w[val], [%[pivot_addr]]\n\t"
+        //              "isb\n\t"
+        //              "mrs x10, S3_2_c15_c0_0\n\t"
+        //              "sub %[latency], x10, x9\n\t"
+        //              "dsb sy\n\t"
+        //              : [val] "+r"(load_val), [latency] "=r"(latency)
+        //              : [pivot_addr] "r"(pivot_addr)
+        //              : "x9", "x10", "memory");
+
+        latency = timer_ticks_to_ns(timer_time_maccess((void *)pivot_addr));
 
         total_evict += (latency > threshold);
     }
@@ -673,20 +700,21 @@ float P1S1Y2P1_timer(uint8_t *pivot_addr, cache_line_set_t *evset_cache_lines,
         for (volatile int k = 0; k < 1000; k++) {
         }
 
-        asm volatile("dmb sy\n\t"
-                     "dsb sy\n\t"
-                     "isb\n\t"
-                     "mrs x9, S3_2_c15_c0_0\n\t"
-                     "ldrb %w[out], [%[addr]]\n\t"
-                     "isb\n\t"
-                     "mrs x10, S3_2_c15_c0_0\n\t"
-                     "sub %[latency], x10, x9\n\t"
-                     "dsb sy\n\t"
-                     "dmb sy\n\t"
-                     : [latency] "=r"(latency), [out] "=r"(load_val)
-                     : [addr] "r"(pivot_addr)
-                     : "x9", "x10");
+        // asm volatile("dmb sy\n\t"
+        //              "dsb sy\n\t"
+        //              "isb\n\t"
+        //              "mrs x9, S3_2_c15_c0_0\n\t"
+        //              "ldrb %w[out], [%[addr]]\n\t"
+        //              "isb\n\t"
+        //              "mrs x10, S3_2_c15_c0_0\n\t"
+        //              "sub %[latency], x10, x9\n\t"
+        //              "dsb sy\n\t"
+        //              "dmb sy\n\t"
+        //              : [latency] "=r"(latency), [out] "=r"(load_val)
+        //              : [addr] "r"(pivot_addr)
+        //              : "x9", "x10");
 
+        latency = timer_ticks_to_ns(timer_time_maccess((void *)pivot_addr));
         total_l2_evict += (latency > L2_MISS_MIN_LATENCY);
         /*flush_cache();*/
     }
@@ -823,17 +851,18 @@ float P1S1Y2S1P1_timer(uint8_t *pivot_addr, cache_line_set_t *evset_cache_lines,
         for (volatile int k = 0; k < 1000; k++) {
         }
 
-        asm volatile("dsb sy\n\t"
-                     "isb\n\t"
-                     "mrs x9, S3_2_c15_c0_0\n\t"
-                     "ldrb %w[out], [%[addr]]\n\t"
-                     "isb\n\t"
-                     "mrs x10, S3_2_c15_c0_0\n\t"
-                     "sub %[latency], x10, x9\n\t"
-                     : [latency] "=r"(latency), [out] "=r"(load_val)
-                     : [addr] "r"(pivot_addr)
-                     : "x9", "x10");
+        // asm volatile("dsb sy\n\t"
+        //              "isb\n\t"
+        //              "mrs x9, S3_2_c15_c0_0\n\t"
+        //              "ldrb %w[out], [%[addr]]\n\t"
+        //              "isb\n\t"
+        //              "mrs x10, S3_2_c15_c0_0\n\t"
+        //              "sub %[latency], x10, x9\n\t"
+        //              : [latency] "=r"(latency), [out] "=r"(load_val)
+        //              : [addr] "r"(pivot_addr)
+        //              : "x9", "x10");
 
+        latency = timer_ticks_to_ns(timer_time_maccess((void *)pivot_addr));
         total_l2_evict += (latency > L2_MISS_MIN_LATENCY);
         /*flush_cache();*/
     }
@@ -960,18 +989,19 @@ float P1S2Y3P1_timer(uint8_t *pivot_addr, cache_line_set_t *evset_cache_lines,
         for (volatile int k = 0; k < 1000; k++) {
         }
 
-        asm volatile("dsb sy\n\t"
-                     "isb\n\t"
-                     "mrs x9, S3_2_c15_c0_0\n\t"
-                     "ldrb %w[out], [%[addr]]\n\t"
-                     "isb\n\t"
-                     "mrs x10, S3_2_c15_c0_0\n\t"
-                     "sub %[latency], x10, x9\n\t"
-                     "dsb sy\n\t"
-                     : [latency] "=r"(latency), [out] "=r"(load_val)
-                     : [addr] "r"(pivot_addr)
-                     : "x9", "x10");
+        // asm volatile("dsb sy\n\t"
+        //              "isb\n\t"
+        //              "mrs x9, S3_2_c15_c0_0\n\t"
+        //              "ldrb %w[out], [%[addr]]\n\t"
+        //              "isb\n\t"
+        //              "mrs x10, S3_2_c15_c0_0\n\t"
+        //              "sub %[latency], x10, x9\n\t"
+        //              "dsb sy\n\t"
+        //              : [latency] "=r"(latency), [out] "=r"(load_val)
+        //              : [addr] "r"(pivot_addr)
+        //              : "x9", "x10");
 
+        latency = timer_ticks_to_ns(timer_time_maccess((void *)pivot_addr));
         total_l2_evict += (latency > L2_MISS_MIN_LATENCY);
         /*flush_cache();*/
     }
@@ -1086,18 +1116,19 @@ float P1S2Y3S2P1_timer(uint8_t *pivot_addr, cache_line_set_t *evset_cache_lines,
         for (volatile int k = 0; k < 1000; k++) {
         }
 
-        asm volatile("dsb sy\n\t"
-                     "isb\n\t"
-                     "mrs x9, S3_2_c15_c0_0\n\t"
-                     "ldrb %w[out], [%[addr]]\n\t"
-                     "isb\n\t"
-                     "mrs x10, S3_2_c15_c0_0\n\t"
-                     "sub %[latency], x10, x9\n\t"
-                     "dsb sy\n\t"
-                     : [latency] "=r"(latency), [out] "=r"(load_val)
-                     : [addr] "r"(pivot_addr)
-                     : "x9", "x10");
+        // asm volatile("dsb sy\n\t"
+        //              "isb\n\t"
+        //              "mrs x9, S3_2_c15_c0_0\n\t"
+        //              "ldrb %w[out], [%[addr]]\n\t"
+        //              "isb\n\t"
+        //              "mrs x10, S3_2_c15_c0_0\n\t"
+        //              "sub %[latency], x10, x9\n\t"
+        //              "dsb sy\n\t"
+        //              : [latency] "=r"(latency), [out] "=r"(load_val)
+        //              : [addr] "r"(pivot_addr)
+        //              : "x9", "x10");
 
+        latency = timer_ticks_to_ns(timer_time_maccess((void *)pivot_addr));
         total_l2_evict += (latency > L2_MISS_MIN_LATENCY);
         /*flush_cache();*/
     }
@@ -1205,17 +1236,19 @@ void P1Sb1P1_timer(uint8_t *pivot_addr,
         }
 #endif
 
-        asm volatile("dsb sy\n\t"
-                     "isb\n\t"
-                     "mrs x9, S3_2_c15_c0_0\n\t"
-                     "ldrb %w[out], [%[pivot_addr]]\n\t"
-                     "isb\n\t"
-                     "mrs x10, S3_2_c15_c0_0\n\t"
-                     "sub %[latency], x10, x9\n\t"
-                     "dsb sy\n\t"
-                     : [latency] "=r"(latency), [out] "=r"(load_val)
-                     : [pivot_addr] "r"(pivot_addr)
-                     : "x9", "x10");
+        // asm volatile("dsb sy\n\t"
+        //              "isb\n\t"
+        //              "mrs x9, S3_2_c15_c0_0\n\t"
+        //              "ldrb %w[out], [%[pivot_addr]]\n\t"
+        //              "isb\n\t"
+        //              "mrs x10, S3_2_c15_c0_0\n\t"
+        //              "sub %[latency], x10, x9\n\t"
+        //              "dsb sy\n\t"
+        //              : [latency] "=r"(latency), [out] "=r"(load_val)
+        //              : [pivot_addr] "r"(pivot_addr)
+        //              : "x9", "x10");
+
+        latency = timer_ticks_to_ns(timer_time_maccess((void *)pivot_addr));
 
         l1_evict = (latency > L1_HIT_MAX_LATENCY);
         total_l1_evict += l1_evict;
@@ -1282,18 +1315,19 @@ void P1Sa1P1Sb1P1_timer(uint8_t *pivot_addr,
         }
 
         // time load pivot addr
-        asm volatile("dsb sy\n\t"
-                     "isb\n\t"
-                     "mrs x9, S3_2_c15_c0_0\n\t"
-                     "ldrb %w[val], [%[pivot_addr]]\n\t"
-                     "isb\n\t"
-                     "mrs x10, S3_2_c15_c0_0\n\t"
-                     "sub %[latency], x10, x9\n\t"
-                     "dsb sy\n\t"
-                     : [val] "=r"(load_val), [latency] "=r"(latency)
-                     : [pivot_addr] "r"(pivot_addr)
-                     : "x9", "x10", "memory");
+        // asm volatile("dsb sy\n\t"
+        //              "isb\n\t"
+        //              "mrs x9, S3_2_c15_c0_0\n\t"
+        //              "ldrb %w[val], [%[pivot_addr]]\n\t"
+        //              "isb\n\t"
+        //              "mrs x10, S3_2_c15_c0_0\n\t"
+        //              "sub %[latency], x10, x9\n\t"
+        //              "dsb sy\n\t"
+        //              : [val] "=r"(load_val), [latency] "=r"(latency)
+        //              : [pivot_addr] "r"(pivot_addr)
+        //              : "x9", "x10", "memory");
 
+        latency = timer_ticks_to_ns(timer_time_maccess((void *)pivot_addr));
         total_l1_evict += (latency > L1_HIT_MAX_LATENCY);
         total_l2_evict += (latency > L2_MISS_MIN_LATENCY);
         /*flush_cache();*/
@@ -1367,17 +1401,19 @@ void P1Sa1P1Sb1Y1P1_timer(uint8_t *pivot_addr,
         }
 
         // time load pivot addr
-        asm volatile("dsb sy\n\t"
-                     "isb\n\t"
-                     "mrs x9, S3_2_c15_c0_0\n\t"
-                     "ldrb %w[val], [%[pivot_addr]]\n\t"
-                     "isb\n\t"
-                     "mrs x10, S3_2_c15_c0_0\n\t"
-                     "sub %[latency], x10, x9\n\t"
-                     "dsb sy\n\t"
-                     : [val] "=r"(load_val), [latency] "=r"(latency)
-                     : [pivot_addr] "r"(pivot_addr)
-                     : "x9", "x10", "memory");
+        // asm volatile("dsb sy\n\t"
+        //              "isb\n\t"
+        //              "mrs x9, S3_2_c15_c0_0\n\t"
+        //              "ldrb %w[val], [%[pivot_addr]]\n\t"
+        //              "isb\n\t"
+        //              "mrs x10, S3_2_c15_c0_0\n\t"
+        //              "sub %[latency], x10, x9\n\t"
+        //              "dsb sy\n\t"
+        //              : [val] "=r"(load_val), [latency] "=r"(latency)
+        //              : [pivot_addr] "r"(pivot_addr)
+        //              : "x9", "x10", "memory");
+
+        latency = timer_ticks_to_ns(timer_time_maccess((void *)pivot_addr));
 
         total_l1_evict += (latency > L1_HIT_MAX_LATENCY);
         total_l2_evict += (latency > L2_MISS_MIN_LATENCY);
@@ -1452,18 +1488,19 @@ void P1Sa1P1Sb1Y2P1_timer(uint8_t *pivot_addr,
         }
 
         // time load pivot addr
-        asm volatile("dsb sy\n\t"
-                     "isb\n\t"
-                     "mrs x9, S3_2_c15_c0_0\n\t"
-                     "ldrb %w[val], [%[pivot_addr]]\n\t"
-                     "isb\n\t"
-                     "mrs x10, S3_2_c15_c0_0\n\t"
-                     "sub %[latency], x10, x9\n\t"
-                     "dsb sy\n\t"
-                     : [val] "=r"(load_val), [latency] "=r"(latency)
-                     : [pivot_addr] "r"(pivot_addr)
-                     : "x9", "x10", "memory");
+        // asm volatile("dsb sy\n\t"
+        //              "isb\n\t"
+        //              "mrs x9, S3_2_c15_c0_0\n\t"
+        //              "ldrb %w[val], [%[pivot_addr]]\n\t"
+        //              "isb\n\t"
+        //              "mrs x10, S3_2_c15_c0_0\n\t"
+        //              "sub %[latency], x10, x9\n\t"
+        //              "dsb sy\n\t"
+        //              : [val] "=r"(load_val), [latency] "=r"(latency)
+        //              : [pivot_addr] "r"(pivot_addr)
+        //              : "x9", "x10", "memory");
 
+        latency = timer_ticks_to_ns(timer_time_maccess((void *)pivot_addr));
         total_l1_evict += (latency > L1_HIT_MAX_LATENCY);
         total_l2_evict += (latency > L2_MISS_MIN_LATENCY);
         /*flush_cache();*/
@@ -1542,17 +1579,19 @@ void P1Sa1P1Sb1Sc2P1_timer(uint8_t *pivot_addr,
         }
 
         // time load pivot addr
-        asm volatile("dsb sy\n\t"
-                     "isb\n\t"
-                     "mrs x9, S3_2_c15_c0_0\n\t"
-                     "ldrb %w[val], [%[pivot_addr]]\n\t"
-                     "isb\n\t"
-                     "mrs x10, S3_2_c15_c0_0\n\t"
-                     "sub %[latency], x10, x9\n\t"
-                     "dsb sy\n\t"
-                     : [val] "=r"(load_val), [latency] "=r"(latency)
-                     : [pivot_addr] "r"(pivot_addr)
-                     : "x9", "x10", "memory");
+        // asm volatile("dsb sy\n\t"
+        //              "isb\n\t"
+        //              "mrs x9, S3_2_c15_c0_0\n\t"
+        //              "ldrb %w[val], [%[pivot_addr]]\n\t"
+        //              "isb\n\t"
+        //              "mrs x10, S3_2_c15_c0_0\n\t"
+        //              "sub %[latency], x10, x9\n\t"
+        //              "dsb sy\n\t"
+        //              : [val] "=r"(load_val), [latency] "=r"(latency)
+        //              : [pivot_addr] "r"(pivot_addr)
+        //              : "x9", "x10", "memory");
+
+        latency = timer_ticks_to_ns(timer_time_maccess((void *)pivot_addr));
 
         total_l1_evict += (latency > L1_HIT_MAX_LATENCY);
         total_l2_evict += (latency > L2_MISS_MIN_LATENCY);

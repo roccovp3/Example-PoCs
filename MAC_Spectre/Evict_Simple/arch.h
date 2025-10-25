@@ -40,7 +40,10 @@
 #define P_CORE_2_ID     6 // we will isolate this core. 1st child thread runs on this core
 #define P_CORE_3_ID     7
 
-#define L1_HIT_MAX_LATENCY  36
-#define L2_MISS_MIN_LATENCY 130
+// #define L1_HIT_MAX_LATENCY  36 // default
+// #define L2_MISS_MIN_LATENCY 130 // default
+
+#define L1_HIT_MAX_LATENCY  20 // Mircea
+#define L2_MISS_MIN_LATENCY 80 // Mircea
 
 #endif

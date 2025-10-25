@@ -13,6 +13,7 @@
 #include "linked_list.h"
 #include "math_utils.h"
 #include "params.h"
+#include "timer.h"
 
 eviction_set_t *create_eviction_set(cache_line_set_t *cache_line_set) {
     eviction_set_t *new_eviction_set =
@@ -416,16 +417,24 @@ static inline uint64_t evict_and_time_once(uint8_t *victim_addr,
     junk ^= traverse_eviction_set(eviction_set);
     asm volatile("dsb sy\n\t");
 
-    asm volatile("dsb sy\n\t"
-                 "isb\n\t"
-                 "mrs x9, S3_2_c15_c0_0\n\t"
-                 "ldrb %w[out], [%[addr]]\n\t"
-                 "isb\n\t"
-                 "mrs x10, S3_2_c15_c0_0\n\t"
-                 "sub %[latency], x10, x9\n\t"
-                 : [latency] "=r"(latency), [out] "=r"(junk)
-                 : [addr] "r"(victim_addr)
-                 : "x9", "x10");
+    // asm volatile("dsb sy\n\t"
+    //              "isb\n\t"
+    //              "mrs x9, S3_2_c15_c0_0\n\t"
+    //              "ldrb %w[out], [%[addr]]\n\t"
+    //              "isb\n\t"
+    //              "mrs x10, S3_2_c15_c0_0\n\t"
+    //              "sub %[latency], x10, x9\n\t"
+    //              : [latency] "=r"(latency), [out] "=r"(junk)
+    //              : [addr] "r"(victim_addr)
+    //              : "x9", "x10");
+
+    
+    latency = timer_ticks_to_ns( timer_time_maccess((void *)victim_addr));
+    // if you also need the loaded value (rare), perform an explicit volatile read:
+    volatile uint8_t tmpval = *(volatile uint8_t *)victim_addr;
+    junk = tmpval;
+
+
 
     global_junk ^= junk;
     return latency;
