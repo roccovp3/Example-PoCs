@@ -2,11 +2,18 @@
 #include "eviction_set.h"
 #include "eviction_set_generation.h"
 #include <assert.h>
+#include <stdio.h>
+#include <stdbool.h>
 
 // this main will return you the eviction set. Run it with the run_cmd function
 // guess, make argv[1], the malicious address
 char *main(int argc, char *argv[]) {
     assert(argc > 1 && "I need the malicious address");
+
+    if (timer_init(true, 0.2) != 0) {
+        fprintf(stderr, "timer_init failed\n");
+        return 1;
+    }
 
     uint64_t secret_address = strtoul(argv[1], NULL, 16);
 
