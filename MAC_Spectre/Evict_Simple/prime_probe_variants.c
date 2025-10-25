@@ -12,6 +12,10 @@
 #include "cross_thread.h"
 #include "prime_probe_variants.h"
 #include "same_thread.h"
+#include <mach/mach_time.h>
+#include <stdatomic.h>
+#include "timer.h"
+
 
 void PrimeY1(uint8_t *victim_addr) {
     uint8_t load_val = 0;
@@ -206,6 +210,9 @@ float P1S1P1_timer(int evrate_to_ret, uint8_t *pivot_addr,
         // set access and the subsequent load
         for (volatile int k = 0; k < 1000; k++) {
         }
+        // latency = timer_ticks_to_ns(timer_time_maccess((void *)pivot_addr));
+        // volatile uint8_t tmpval = *(volatile uint8_t *)pivot_addr;
+        // load_val = tmpval;
 
         asm volatile("dsb sy\n\t"
                      "isb\n\t"
@@ -218,6 +225,8 @@ float P1S1P1_timer(int evrate_to_ret, uint8_t *pivot_addr,
                      : [latency] "=r"(latency), [val] "=r"(load_val)
                      : [addr] "r"(pivot_addr)
                      : "x9", "x10");
+
+        
 
         total_evict += (latency > threshold);
         /*flush_cache();*/
