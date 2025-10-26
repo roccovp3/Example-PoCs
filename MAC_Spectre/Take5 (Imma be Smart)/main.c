@@ -7,7 +7,6 @@
 #include <ctype.h>
 
 #include "timer.h"
-#include "eviction_set.h"
 #include <stddef.h>
 #include <sched.h>
 
