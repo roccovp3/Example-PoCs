@@ -2,6 +2,7 @@
     "files.associations": {
         "eviction_set_generation.h": "c",
         "mach.h": "c",
-        "stddef.h": "c"
+        "stddef.h": "c",
+        "stdbool.h": "c"
     }
 }
