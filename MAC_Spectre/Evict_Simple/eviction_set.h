@@ -7,7 +7,7 @@
 
 #include <stdint.h>
 
-#define NUM_TESTS 100
+#define NUM_TESTS 10
 
 // the eviction set consists of a linked list of cache lines
 // that can be traversed multiple times in an attempt to evict

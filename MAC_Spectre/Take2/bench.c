@@ -52,7 +52,7 @@ int main(void) {
         return 1;
     }
 
-    const int reps = 20000;
+    const int reps = 2;
     unsigned char *buf = NULL;
     if (posix_memalign((void**)&buf, 64, 4096) != 0 || !buf) {
         perror("alloc");

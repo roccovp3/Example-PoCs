@@ -17,13 +17,6 @@
 #include <unistd.h>
 
 // Architecture-dependent ISB-ish fence
-#if defined(__aarch64__)
-  #define ISB() __asm__ __volatile__("isb" ::: "memory")
-#elif defined(__x86_64__)
-  #define ISB() __asm__ __volatile__("lfence" ::: "memory")
-#else
-  #define ISB() __asm__ __volatile__("" ::: "memory")
-#endif
 
 static _Atomic uint64_t g_counter = 0;
 static _Atomic int      g_stop = 0;

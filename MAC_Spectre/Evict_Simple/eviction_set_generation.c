@@ -17,6 +17,10 @@
 #include "prime_probe_variants.h"
 #include "sys_utils.h"
 
+// Safety cap to avoid runaway supersets that make reduction too slow on
+// platforms with noisy timers. Adjust as needed.
+#define MAX_L2_SUPERSET_SIZE 4096
+
 int num_congruent_addrs_share_l1set_with_pivot_addr = 4;
 
 // Goal: find a set if cache lines that map to the same L1 set as victim_addr
@@ -49,6 +53,10 @@ cache_line_set_t *build_l2_eviction_set_superset(allocator_t *allocator,
         build_empty_cache_line_set(allocator);
 
     while (1) {
+        if (candidate_cache_line_set->num_cache_lines >= MAX_L2_SUPERSET_SIZE) {
+            printf("WARNING: candidate superset reached MAX_L2_SUPERSET_SIZE (%d); stopping growth\n", MAX_L2_SUPERSET_SIZE);
+            break;
+        }
         int num_cache_lines_to_add =
             max(16, candidate_cache_line_set->num_cache_lines);
 
@@ -67,7 +75,13 @@ cache_line_set_t *build_l2_eviction_set_superset(allocator_t *allocator,
                  candidate_cache_line_set->num_cache_lines);
 
         if (timing > threshold)
+        {
+            // DEBUG: print the candidate superset that triggers eviction
+            printf("DEBUG: build_l2_eviction_set_superset found superset (size=%ld) with timing=%d for %p\n",
+                   candidate_cache_line_set->num_cache_lines, timing, victim_addr);
+            print_cache_line_set(candidate_cache_line_set);
             break; // we found the superset of eviction set
+        }
     }
 
     return candidate_cache_line_set;
@@ -78,7 +92,7 @@ void reduce_l2_eviction_set_superset(cache_line_set_t *eviction_set_superset,
     cache_line_set_t *reserved_cache_line_set =
         build_empty_cache_line_set(NULL);
 
-    int max_wait = 20; // we want to at most spend 20 seconds doing the search
+    int max_wait = 120; // increased timeout (seconds) to tolerate noisy timers on macOS
     time_t start, end;
     time(&start);
 
@@ -264,15 +278,20 @@ cache_line_set_t *find_L2_eviction_set_using_timer(uint8_t *victim_addr) {
         evset_cache_lines = build_l2_eviction_set_superset(
             allocator, victim_addr, L2_MISS_MIN_LATENCY);
 
+        // DEBUG: dump the generated superset addresses for inspection
+        printf("DEBUG: generated L2 superset (size=%ld) for %p\n", evset_cache_lines->num_cache_lines, victim_addr);
+        print_cache_line_set(evset_cache_lines);
+
         // print the measured time when using the superset to evict victim_addr
         int timing_evicted = evict_and_time(victim_addr, evset_cache_lines);
         printf("try evicting %p with generated eviction set superset "
                "(size=%d): latency = %d\n",
                victim_addr, evset_cache_lines->num_cache_lines, timing_evicted);
 
-        // reduce the superset into L2_NWAYS number of cache lines
-        reduce_l2_eviction_set_superset(evset_cache_lines, victim_addr,
-                                        L2_MISS_MIN_LATENCY);
+    // reduce the superset into L2_NWAYS number of cache lines
+    printf("DEBUG: about to reduce L2 superset (size=%ld)\n", evset_cache_lines->num_cache_lines);
+    reduce_l2_eviction_set_superset(evset_cache_lines, victim_addr,
+                    L2_MISS_MIN_LATENCY);
 
         // test the reduced eviction set. We try 2 different orders to make sure
         // no error

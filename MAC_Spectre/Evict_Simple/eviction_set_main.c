@@ -22,9 +22,17 @@ char *main(int argc, char *argv[]) {
     cache_line_set_t *L1_evict =
         find_L1_congruent_cache_lines((uint8_t *)secret_address, PAGE_SIZE);
 
+    print_cache_line_set(L1_evict);
+    fprintf(stdout, "Done finding L1 eviction set.\n");
+
+
     // L2 Eviction set
     cache_line_set_t *l2_congruent_cache_lines_1 =
         find_L2_eviction_set_using_timer((uint8_t *)secret_address);
+
+    print_cache_line_set(l2_congruent_cache_lines_1);
+    fprintf(stdout, "Done finding first half of L2 eviction set.\n");
+    
     cache_line_set_t *l2_congruent_cache_lines_2 =
         find_L2_eviction_set_using_timer((uint8_t *)secret_address);
 
