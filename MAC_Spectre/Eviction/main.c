@@ -1,0 +1,88 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/mman.h>
+#include <stdint.h>
+
+#include "timer.h"
+
+#define EVICT_BYTES 128
+#define NUM_ADDRESSES 50
+
+// Fisher-Yates Shuffle
+void shuffle_ptrs(uint8_t **array, size_t n)
+{
+    for (size_t i = 0; i < n - 1; i++) {
+        size_t j = i + rand() / (RAND_MAX / (n - i) + 1);
+        uint8_t *tmp = array[j];
+        array[j] = array[i];
+        array[i] = tmp;
+    }
+}
+
+
+
+int main(int argc, char *argv[])
+{
+    timer_init(true, 1);
+    uint64_t threshold = calibrate_latency();
+
+    size_t smart_evict_bytes = 128 * 1024 * 1024;
+    uint8_t *smart_evict_buf = malloc(smart_evict_bytes);
+    if (!smart_evict_buf) exit(1);
+
+    // Touch pages to force physical allocation (important!)
+    for (size_t i = 0; i < smart_evict_bytes; i += 4096)
+        smart_evict_buf[i] = 1;
+
+    // ✅ Create a pointer array representing each cache line
+    size_t num_lines = smart_evict_bytes / LINE_SIZE;
+    printf("NUM_LINES = %zu\n", num_lines/6);
+
+
+    uint8_t **evict_ptrs = malloc(sizeof(uint8_t *) * num_lines);
+    if (!evict_ptrs) exit(1);
+
+    for (size_t i = 0; i < num_lines; i++)
+        evict_ptrs[i] = smart_evict_buf + (i * LINE_SIZE);
+
+    // ✅ Randomize pointer order (not bytes)
+    shuffle_ptrs(evict_ptrs, num_lines);
+
+
+    uint64_t hit = 0, miss = 0, rep = 1000;
+    uint8_t *data = malloc(8);
+    if (!data) exit(1);
+
+    int fail = 0;
+    int success_count=0, fail_count=0;
+    while (true) {
+        miss = 0;
+
+        for (uint32_t n = 0; n < rep; n++) {
+
+            // ✅ Evict by iterating random cache-line addresses
+            for (size_t i = 0; i < 204000; i++){
+                touch(evict_ptrs[i]);
+            }
+
+            miss += timer_time_maccess(data);
+        }
+        miss /= rep;
+        shuffle_ptrs(evict_ptrs, num_lines);
+        printf("MISS %d: %llu\n", fail, miss);
+        
+        if (fail == 100) {
+            break;
+        }
+        if (miss > threshold) {
+            success_count++;
+        }
+        else{
+            fail_count++;
+        }
+        fail++;
+    }
+    printf("Success Evict = %d\nFail Evict = %d\n", success_count, fail_count);
+
+    return 0;
+}

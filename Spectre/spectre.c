@@ -311,6 +311,7 @@ void naive_attacker() {
 }
 
 int main(int argc, char **argv) {
+    printf("%p\n", &array_size);
     if (argc == 2 && strcmp(argv[1], "naive") == 0) {
         printf(YELLOW_F "Using a naive Spectre PoC\n" RESET_C);
         naive_attacker();

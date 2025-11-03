@@ -171,6 +171,13 @@ void evict_by_sweep(uint8_t *evict_buf, size_t evict_bytes) {
     }
 }
 
+void smart_evict_by_sweep(uint8_t *evict_buf, size_t evict_bytes) {
+    for (size_t i = 0; i < evict_bytes; i ++) {
+        touch(evict_buf + i);
+    }
+}
+
+
 
 uint64_t calibrate_latency() {
 
