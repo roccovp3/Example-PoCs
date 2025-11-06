@@ -7,7 +7,7 @@
 
 #define EVICT_BYTES 128
 #define NUM_ADDRESSES 50
-
+#define loop 280000
 // Fisher-Yates Shuffle
 void shuffle_ptrs(uint8_t **array, size_t n)
 {
@@ -49,7 +49,7 @@ int main1(int argc, char *argv[])
     shuffle_ptrs(evict_ptrs, num_lines);
 
 
-    uint64_t hit = 0, miss = 0, rep = 1000;
+    uint64_t hit = 0, miss = 0, rep = 100;
     uint8_t *data = malloc(8);
     if (!data) exit(1);
 
@@ -63,7 +63,7 @@ int main1(int argc, char *argv[])
             // Evict by iterating random cache-line addresses
             // Macbook Air M4 - 204000
             // Macbook Pro M4 Pro - 330000
-            for (size_t i = 0; i < 327000; i++){
+            for (size_t i = 0; i < loop; i++){
                 touch(evict_ptrs[i]);
             }
 
@@ -98,7 +98,7 @@ void fuzzy_evict()
     // Evict by iterating random cache-line addresses
     // Macbook Air M4 - 204000
     // Macbook Pro M4 Pro - 327000
-    for (size_t i = 0; i < 327000; i++){
+    for (size_t i = 0; i < loop; i++){
         touch(evict_ptrs[i]);
     }
 }

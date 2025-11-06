@@ -2,7 +2,7 @@
 # Target binary: spectre
 
 CC = gcc
-CFLAGS = -g -O2 -std=c11
+CFLAGS = -g -O1 -std=c11
 
 # Target binary name (note: you asked for spectre.c but that's the source file,
 # so the binary will be named 'spectre')
