@@ -27,7 +27,7 @@ int main(int argc, char *argv[])
     uint64_t threshold = calibrate_latency();
 
     size_t smart_evict_bytes = 128 * 1024 * 1024;
-    uint8_t *smart_evict_buf = malloc(smart_evict_bytes);
+    __uint128_t *smart_evict_buf = malloc(smart_evict_bytes);
     if (!smart_evict_buf) exit(1);
 
     // Touch pages to force physical allocation (important!)
@@ -42,7 +42,7 @@ int main(int argc, char *argv[])
     uint8_t **evict_ptrs = malloc(sizeof(uint8_t *) * num_lines);
     if (!evict_ptrs) exit(1);
 
-    for (size_t i = 0; i < num_lines; i++)
+    for (size_t i = 0; i < 50; i++)
         evict_ptrs[i] = smart_evict_buf + (i * LINE_SIZE);
 
     // ✅ Randomize pointer order (not bytes)
