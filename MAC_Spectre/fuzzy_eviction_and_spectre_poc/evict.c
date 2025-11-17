@@ -56,7 +56,7 @@ int main1(int argc, char *argv[])
     int fail = 0;
     int success_count=0, fail_count=0;
     while (true) {
-        miss = 0;
+        miss = 0; 
 
         for (uint32_t n = 0; n < rep; n++) {
 
