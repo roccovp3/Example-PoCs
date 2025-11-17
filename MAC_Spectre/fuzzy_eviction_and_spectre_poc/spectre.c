@@ -171,7 +171,7 @@ void naive_attacker() {
     return;
 }
 
-int main(int argc, char **argv) {
+int main1(int argc, char **argv) {
     flush_buffer = (uint8_t*)malloc(256 * PAGE_SIZE);
 
     printf(YELLOW_F "Using a naive Spectre PoC\n" RESET_C);
