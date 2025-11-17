@@ -99,7 +99,7 @@ int main(int argc, char *argv[])
     for(int i = 0; i < 400; i++){
         fprintf(file, "%d, %d\n", i, total_hits[i]);
     }
-    
+     
     return 0;
 }
 
