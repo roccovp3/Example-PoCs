@@ -7,7 +7,7 @@
 #include "timer.h"
 
 #define LINE_SIZE 128      // 128B cache line, as you described
-#define loop 280000        // not used anymore, but you can delete if unused
+#define loop 384000        // not used anymore, but you can delete if unused
 
 // Fisher-Yates Shuffle
 void shuffle_ptrs(uint8_t **array, size_t n)
@@ -20,7 +20,7 @@ void shuffle_ptrs(uint8_t **array, size_t n)
     }
 }
 
-int main(int argc, char *argv[])
+int main1(int argc, char *argv[])
 {
     // Seed RNG for shuffle
     srand((unsigned)time(NULL));
@@ -93,10 +93,6 @@ int main(int argc, char *argv[])
 
     // Sweep j from 100,000 to 500,000 in steps of 1,000
     for (int j = 100000; j <= 500000; j += 1000) {
-
-
-     
-
 
         int cache_miss = 0;
         int cache_hit  = 0;

