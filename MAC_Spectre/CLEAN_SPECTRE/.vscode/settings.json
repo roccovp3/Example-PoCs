@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "mmap_secret.h": "c",
+        "utils.h": "c",
+        "inttypes.h": "c",
+        "mach_time.h": "c"
+    }
+}
