@@ -41,6 +41,6 @@
 
 
 // tunable params
-#define NUM_ADDRESSES 382000 // this is the number of addresses to read for eviction
+#define NUM_ADDRESSES 1000 // this is the number of addresses to read for eviction
 #define reps 100
 #define mistrain 16
