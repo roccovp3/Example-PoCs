@@ -56,7 +56,7 @@ int main1(int argc, char *argv[])
     // Randomize pointer order
     shuffle_ptrs(evict_ptrs, num_lines);
 
-    uint32_t rep = 1000;  // number of trials per N
+    uint32_t rep = 2000;  // number of trials per N
 
 
     const size_t page_size  = 16384;      // or (size_t)sysconf(_SC_PAGESIZE);
@@ -82,7 +82,7 @@ int main1(int argc, char *argv[])
     
 
     // Open results file ONCE, and append all measurements
-    FILE *output_file = fopen("Results_TLB_Load1.csv", "w");
+    FILE *output_file = fopen("Results_TLB_Load5.csv", "w");
     if (!output_file) {
         perror("fopen Results.csv");
         exit(1);
@@ -113,7 +113,7 @@ int main1(int argc, char *argv[])
                 touch(evict_ptrs[i]);
             }
 
-            touch(tlb_ptr);
+            // touch(tlb_ptr);
 
 
 

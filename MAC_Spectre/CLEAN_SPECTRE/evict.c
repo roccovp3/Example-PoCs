@@ -18,27 +18,31 @@ void shuffle_ptrs(uint8_t **array, size_t n)
 /* This is only for entire cache_flush stuff */
 unsigned char *evict_buf = NULL;
 
-static inline void init_eviction_buffer(void) {
+static void init_eviction_buffer(void) {
     if (!evict_buf) {
         // posix_memalign for line alignment
-        if (posix_memalign((void**)&evict_buf, 64, EVICT_SIZE) != 0 || !evict_buf) {
+        if ((evict_buf = malloc(EVICT_SIZE * sizeof(char))) == NULL) {
             perror("evict buffer alloc");
             exit(1);
         }
+        printf("Eviction buffer pointer = %p\n", evict_buf);
         memset(evict_buf, 0xA5, EVICT_SIZE);
     }
 }
 
 
-static inline void evict_caches(void) {
+static void evict_caches(void) {
     volatile unsigned int acc = 0;
-    for (size_t i = 0; i < EVICT_SIZE; i += CACHE_LINE_SIZE) acc += evict_buf[i];
-    (void)acc;
+    for (size_t i = 0; i < EVICT_SIZE; i += CACHE_LINE_SIZE){
+        acc += evict_buf[i];
+    } 
+    
 }
 
-inline void flush_whole_cache() {
+void flush_whole_cache() {
     init_eviction_buffer();
     evict_caches();
+    printf("Cache flushing done\n");
 }
 
 /* ================================= Fuzzy eviction Set ==========*/

@@ -232,7 +232,7 @@ uint64_t calibrate_latency(bool atomic) {
     }
     miss /= rep;
 
-    threshold = ((2 * miss) + hit) / 3;
+    threshold = ((2 * miss) + hit) / 4;
     printf("Avg. hit latency: %" PRIu64 ", Avg. miss latency: %" PRIu64
            ", Threshold: %" PRIu64 "\n",
            hit, miss, threshold);

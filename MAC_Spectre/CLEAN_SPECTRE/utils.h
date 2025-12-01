@@ -34,13 +34,13 @@
 
 #define PAGE_SIZE_LOCAL 16384                                // 16 KB Page Size
 #define CACHE_LINE_SIZE 128                            // 128B cache line
-#define SYMBOL_CNT (1 << (sizeof(char) * 7))           // 128 ASCII Values
+#define SYMBOL_CNT (1 << (sizeof(char) * 8))           // 128 ASCII Values
 #define ISB() __asm__ __volatile__("isb" ::: "memory") // instruction barrier
 
 #define EVICT_SIZE (128 * 1024 * 1024) // size of eviction buffer
 
 
 // tunable params
-#define NUM_ADDRESSES 384000 // this is the number of addresses to read for eviction
-#define reps 200
+#define NUM_ADDRESSES 382000 // this is the number of addresses to read for eviction
+#define reps 100
 #define mistrain 16

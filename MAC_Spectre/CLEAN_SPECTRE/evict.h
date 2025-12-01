@@ -4,7 +4,7 @@
 
 extern unsigned char *evict_buf;
 
-inline void flush_whole_cache();
+void flush_whole_cache();
 
 
 void find_fuzzy_eviction_set();
