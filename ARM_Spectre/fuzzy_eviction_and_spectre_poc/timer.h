@@ -4,7 +4,7 @@
 #include <stdbool.h>
 
 #define LINE_SIZE 256
-#define BUF_SIZE_MB 8
+#define BUF_SIZE_MB 64
 // #define PAGE_SIZE 4096
 #define LLC_SIZE_MB 32
 #define CORE 0

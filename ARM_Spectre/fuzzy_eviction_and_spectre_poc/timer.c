@@ -1,4 +1,3 @@
-#define _GNU_SOURCE  // Enable GNU extensions for sched functions
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -14,12 +13,16 @@
 #include "timer.h"
 
 /* Simple single-threaded timer using ARMv8 system counter (CNTVCT_EL0).
-   Falls back to clock_gettime(CLOCK_MONOTONIC) on non-AArch64 builds. */
+   Requires AArch64 platform; exits with error otherwise. */
 
 int timer_init(bool use_affinity, double calib_seconds) {
     (void)use_affinity;
     (void)calib_seconds;
-    /* No initialization required for CNTVCT_EL0 or clock_gettime fallback. */
+#ifndef __aarch64__
+    fprintf(stderr, "Error: This timer requires an AArch64 platform (ARMv8).\n");
+    exit(1);
+#endif
+    /* No initialization required for CNTVCT_EL0. */
     cpu_set_t cpuset;
     CPU_ZERO(&cpuset);
     CPU_SET(CORE, &cpuset);
@@ -149,47 +152,7 @@ uint64_t calibrate_latency() {
     return threshold;
 }
 
-// uint64_t calibrate_latency() {
-//     size_t evict_bytes = (size_t)BUF_SIZE_MB * 1024 * 1024;
-//     uint8_t *evict_buf = malloc(evict_bytes + LINE_SIZE);
-//     if (!evict_buf) {
-//         perror("malloc evict_buf");
-//         exit(-1);
-//     }
-
-//     /* touch pages to allocate physical memory */
-//     for (size_t i = 0; i < evict_bytes; i += 4096) evict_buf[i] = 1;
-
-//     uint64_t hit = 0, miss = 0, threshold, rep = 1000;
-//     uint8_t *data = malloc(8);
-//     assert(data);
-
-//     /* Measure cache hit latency */ 
-//     volatile uint8_t val = *data;
-//     (void)val;
-//     for (uint32_t n = 0; n < rep; n++) {
-//         hit += timer_time_maccess(data);
-//     }
-//     hit /= rep;
-
-//     /* Measure cache miss latency */
-//     for (uint32_t n = 0; n < rep; n++) {
-//         evict_by_sweep(evict_buf, evict_bytes);
-//         miss += timer_time_maccess(data);
-//     }
-//     miss /= rep;
-
-//     threshold = ((2 * miss) + hit) / 3;
-//     printf("Avg. hit latency: %" PRIu64 ", Avg. miss latency: %" PRIu64
-//            ", Threshold: %" PRIu64 "\n",
-//            hit, miss, threshold);
-
-//     free(data);
-//     free(evict_buf);
-//     return threshold;
-// }
-
-int main(void) {
+int main3(void) {
     if (timer_init(false, 0.0) != 0) {
         fprintf(stderr, "timer_init failed\n");
         return 1;
