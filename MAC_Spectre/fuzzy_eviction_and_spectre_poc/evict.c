@@ -6,9 +6,9 @@
 
 #include "timer.h"
 
-#define LINE_SIZE 128      // 128B cache line, as you described
-#define MIN_SET_SIZE 1000        // not used anymore, but you can delete if unused
-#define SET_SIZE_DECREMENT 500
+#define LINE_SIZE 128
+#define MIN_SET_SIZE 1000
+#define SET_SIZE_DECREMENT 1
 
 // Fisher-Yates Shuffle
 void shuffle_ptrs(uint8_t **array, size_t n)
@@ -34,6 +34,51 @@ void evict(uint32_t set_size)
 
 uint32_t find_eviction_set(void* addr, uint32_t threshold) {
     uint8_t eviction_set_valid = 0;
+    smart_evict_bytes = 128 * 1024 * 1024;
+    smart_evict_buf = malloc(smart_evict_bytes);
+    if (!smart_evict_buf) exit(1);
+
+    size_t num_lines = smart_evict_bytes / LINE_SIZE;
+
+    uint8_t **candidate_evict_ptrs = (uint8_t**)malloc(sizeof(uint8_t*)*(num_lines));
+    evict_ptrs = (uint8_t**)malloc(sizeof(uint8_t*)*(num_lines));
+
+    // Create a pointer array representing each cache line
+    for (size_t i = 0; i < num_lines; i++)
+        candidate_evict_ptrs[i] = smart_evict_buf + (i * LINE_SIZE);
+
+    // 1. Shuffle all pointers
+    shuffle_ptrs(candidate_evict_ptrs, num_lines);
+
+    // 2. Add addresses until secret evicted.
+    uint32_t set_size = 0;
+    uint32_t candidate_index = 0;
+    uint8_t secret_evicted = 0;
+    while(candidate_index < num_lines) {
+        evict_ptrs[set_size] = candidate_evict_ptrs[candidate_index];
+        set_size++, candidate_index++;
+
+        // Check if secret was evicted
+        eviction_set_valid = 0;
+        for(int i = 0; i < 10; i++) {
+            for (size_t i = 0; i < set_size; i++){
+                touch(evict_ptrs[i]);
+            }
+
+            eviction_set_valid += timer_time_maccess(addr) > threshold;            
+        }
+
+        // 3. If secret was evicted by adding the last address, remove it.
+        if(eviction_set_valid > 6) {
+            evict_ptrs[set_size-1] = 0;
+            set_size--;
+        }
+    }
+    return set_size;
+}
+
+uint32_t find_eviction_set_build(void* addr, uint32_t threshold) {
+    uint8_t eviction_set_valid = 0;
     smart_evict_bytes = 20 * 1024 * 1024;
     smart_evict_buf = malloc(smart_evict_bytes);
     if (!smart_evict_buf) exit(1);
@@ -41,48 +86,33 @@ uint32_t find_eviction_set(void* addr, uint32_t threshold) {
     size_t num_lines = smart_evict_bytes / LINE_SIZE;
 
     evict_ptrs = (uint8_t**)malloc(sizeof(uint8_t*)*(num_lines + (MIN_SET_SIZE*2)));
-    printf("a: %d\n", num_lines+2*MIN_SET_SIZE);
-    // Create a pointer array representing each cache line
-    for (size_t i = 0; i < (num_lines + (MIN_SET_SIZE*2)); i++)
-        evict_ptrs[i] = smart_evict_buf + (i * LINE_SIZE);
 
-    uint8_t prev_valid = 0;
-    uint32_t set_size = 1 << 17;
-    uint32_t prev_set_size = set_size + MIN_SET_SIZE;
-    while((set_size > MIN_SET_SIZE) || (!eviction_set_valid)) {
-        
-        // Randomize pointer order (not bytes)
-        shuffle_ptrs(evict_ptrs, prev_set_size);
+    uint32_t set_size = 1;
 
-        prev_valid = eviction_set_valid;
-        // Touch pages to force physical allocation (important!)
-        for (size_t i = 0; i < smart_evict_bytes; i += 16384)
-            smart_evict_buf[i] = 1;
-
-        eviction_set_valid = 0;
-        for(int i = 0; i < 3; i++) {
-            for (size_t i = 0; i < set_size; i++){
-                touch(evict_ptrs[i]);
-            }
-
-            eviction_set_valid += timer_time_maccess(addr) > threshold;
+    for(int j = 0; j < 10; j++) {
+        for (size_t i = 0; i < set_size; i++){
+            touch(evict_ptrs[i]);
         }
 
-        if(eviction_set_valid > 1) {
-            printf("Found a set of size %d. Reducing...", set_size);
-            prev_set_size = set_size;
-            set_size -= SET_SIZE_DECREMENT;
+        eviction_set_valid += timer_time_maccess(addr) > threshold;
+
+        if(eviction_set_valid < 0) {
+            printf("Found a set of size %d. Reducing...\n", set_size);
+            fflush(stdout);
         }
-    }   
+    }
+    
     return set_size;
 }
 
 int main(int argc, char *argv[])
 {
     timer_init(0, 0.3);
+    uint8_t* data = (uint8_t*)malloc(sizeof(uint8_t)*LINE_SIZE*16);
+
     uint32_t threshold = calibrate_latency();
 
-    uint8_t* data = (uint8_t*)malloc(sizeof(uint8_t));
+    uint8_t* array_index = (uint8_t*)malloc(sizeof(uint8_t)*LINE_SIZE*16);
     uint32_t set_size = find_eviction_set(data, threshold);
 
     printf("Done. Eviction set size: %d\n", set_size);
@@ -90,25 +120,23 @@ int main(int argc, char *argv[])
     uint32_t rep = 1000;
     uint32_t hits = 0;
     uint32_t misses = 0;
+    uint32_t array_index_misses = 0;
     uint32_t hit_time;
     uint32_t miss_time;
-
-    for (uint32_t n = 0; n < rep; n++) {  
-        volatile uint8_t temp = *data;     
-        hit_time = timer_time_maccess(data);
-        hits += (hit_time < threshold);
-    }
 
     // Measure cache miss latency
     for (uint32_t n = 0; n < rep; n++) {
         evict(set_size);
+        hit_time = timer_time_maccess(data);
+        hits += (hit_time < threshold);
+
+        touch(array_index);
         evict(set_size);
-        evict(set_size);
-        miss_time = timer_time_maccess(data);
-        misses += (miss_time >= threshold);
+        miss_time = timer_time_maccess(array_index);
+        array_index_misses += (miss_time >= threshold);
     }
 
-    printf("hits: %d; misses: %d\n", hits, misses);
+    printf("data_hits: %d, array_index_misses: %d\n", hits, array_index_misses);
 
     return 0;
 }

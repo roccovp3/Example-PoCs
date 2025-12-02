@@ -14,7 +14,7 @@
 
 #include "timer.h"
 
-
+#define LINE_SIZE 128
 
 #define _maccess(P) ({                                                         \
     typeof(*(P)) _NO_USE;                                                      \

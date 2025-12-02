@@ -2,7 +2,6 @@
 #include <inttypes.h>
 #include <stdbool.h>
 
-#define LINE_SIZE 128
 #define BUF_SIZE_MB 128
 #define TARGET_STRIDE 1
 #define ISB() __asm__ __volatile__("isb" ::: "memory")
