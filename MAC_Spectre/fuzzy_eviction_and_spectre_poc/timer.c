@@ -117,11 +117,17 @@ void timer_shutdown(void) {
 
 static void* timer_thread_fn(void* arg) {
     void *test = arg; // shut the compiler up
+    uint64_t local = 0;
+    atomic_store_explicit(&g_counter, 0, memory_order_relaxed);
+    atomic_store_explicit(&g_stop, 0, memory_order_relaxed);
+
+
     #ifdef QOS_CLASS_USER_INTERACTIVE
         pthread_set_qos_class_self_np(QOS_CLASS_USER_INTERACTIVE, 0);
     #endif
     while (!atomic_load_explicit(&g_stop, memory_order_relaxed)) {
-        atomic_fetch_add_explicit(&g_counter, 1, memory_order_relaxed);
+        local++;
+        atomic_store_explicit(&g_counter, local, memory_order_relaxed);
     }
     return NULL;
 }
@@ -216,7 +222,7 @@ uint64_t calibrate_latency() {
     }
     miss /= rep;
 
-    threshold = ((2 * miss) + hit) / 3;
+    threshold = ((2 * miss) + hit) / 4;
     printf("Avg. hit latency: %" PRIu64 ", Avg. miss latency: %" PRIu64
            ", Threshold: %" PRIu64 "\n",
            hit, miss, threshold);

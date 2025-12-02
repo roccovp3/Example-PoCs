@@ -2,8 +2,8 @@
 #define EVICT_H
 #include <stdint.h>
 
-void fuzzy_evict();
+void evict(uint32_t set_size);
 
-void find_fuzzy_eviction_set();
+uint32_t find_eviction_set(void* addr, uint32_t threshold);
 
 #endif
