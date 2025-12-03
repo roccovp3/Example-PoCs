@@ -163,6 +163,7 @@ void fuzzy_evict()
     // Evict by iterating random cache-line addresses
     // Macbook Air M4 - 204000
     // Macbook Pro M4 Pro - 327000
+    // 
     for (size_t i = 0; i < loop; i++){
         touch(evict_ptrs[i]);
     }

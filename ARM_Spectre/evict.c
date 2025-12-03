@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include "timer.h"
 
+
 // Fisher-Yates Shuffle
 void shuffle_ptrs(uint8_t **array, size_t n)
 {
@@ -19,19 +20,24 @@ uint8_t **evict_ptrs;
 size_t smart_evict_bytes;
 uint8_t *smart_evict_buf;
 
+void shuffle_ptrs_ext() {
+    size_t num_lines = smart_evict_bytes / LINE_SIZE;
+    shuffle_ptrs(evict_ptrs, num_lines);
+}
+
 void fuzzy_evict()
 {
     // Evict by iterating random cache-line addresses
     // Macbook Air M4 - 204000
     // Macbook Pro M4 Pro - 327000
-    // ARM FUJITSU A64FX - half of llc / cache line size = 62500
-    for (size_t i = 0; i < 30000; i++){
+    // ARM FUJITSU A64FX - 26000
+    for (size_t i = 0; i < 50000; i++){
         touch(evict_ptrs[i]);
     }
 }
 
 void find_fuzzy_eviction_set() {
-    smart_evict_bytes = 256 * 1024 * 1024;
+    smart_evict_bytes = BUF_SIZE_MB * 1024 * 1024;
     smart_evict_buf = malloc(smart_evict_bytes);
     if (!smart_evict_buf) exit(1);
 

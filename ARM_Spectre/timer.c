@@ -126,7 +126,7 @@ uint64_t calibrate_latency() {
     /* Measure cache miss latency (second pass) */
     for (uint32_t n = 0; n < rep; n++) {
         double diff = (double)misses[n] - miss_mean;
-        printf("Miss sample %u: %lu, diff = %.2f\n", n, misses[n], diff);
+        // printf("Miss sample %u: %lu, diff = %.2f\n", n, misses[n], diff);
         miss_sq_diff_sum += diff * diff;
     }
 
@@ -140,7 +140,7 @@ uint64_t calibrate_latency() {
     double hit_stddev = sqrt(hit_variance);
     double miss_stddev = sqrt(miss_variance);
 
-    threshold = ((2 * miss_avg) + hit_avg) / 3;
+    threshold = ((2 * miss_avg) + hit_avg) / 4;
     printf("Avg. hit latency: %" PRIu64 " (std dev: %.2f), Avg. miss latency: %" PRIu64 " (std dev: %.2f), Min miss: %" PRIu64 ", Threshold: %" PRIu64 "\n",
            hit_avg, hit_stddev, miss_avg, miss_stddev, miss_min, threshold);
 
@@ -189,7 +189,7 @@ uint64_t calibrate_latency() {
 //     return threshold;
 // }
 
-int main(void) {
+int main2(void) {
     if (timer_init(false, 0.0) != 0) {
         fprintf(stderr, "timer_init failed\n");
         return 1;

