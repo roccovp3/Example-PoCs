@@ -105,7 +105,7 @@ uint32_t find_eviction_set_build(void* addr, uint32_t threshold) {
     return set_size;
 }
 
-int main(int argc, char *argv[])
+int main1(int argc, char *argv[])
 {
     timer_init(0, 0.3);
     uint8_t* data = (uint8_t*)malloc(sizeof(uint8_t)*LINE_SIZE*16);

