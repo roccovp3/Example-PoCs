@@ -70,7 +70,7 @@
 
 // amount of training calls per out-of-bound call to the victim function.
 // VICTIM_CALLS should be divisible by TRAINING + 1
-#define TRAINING 9
+#define TRAINING (VICTIM_CALLS-1)
 
 // iPhone 7: 110
 // iPhone 8 Plus: 60

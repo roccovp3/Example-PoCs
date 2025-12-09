@@ -1,0 +1,653 @@
+[Spectre Variant 1]
+ ---- SETUP ---- 
+miss: 328, hit: 76, threshold: 265
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+max retries exceeded!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+max retries exceeded!
+
+ ---- LEAKING ----
+
+ ---- RESULT ----
+TDE$CaDD$DC$A$DDD12#
+leaked 20 bytes in 9194ms. (2.18 bytes / sec)
+[Spectre Variant 1]
+ ---- SETUP ---- 
+miss: 215, hit: 76, threshold: 180
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+max retries exceeded!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+Eviction set found!
+
+ ---- LEAKING ----
+
+ ---- RESULT ----
+
+leaked 20 bytes in 181ms. (110.50 bytes / sec)
+[Spectre Variant 1]
+ ---- SETUP ---- 
+miss: 228, hit: 73, threshold: 190
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+max retries exceeded!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+Eviction set found!
+
+ ---- LEAKING ----
+
+ ---- RESULT ----
+A
+leaked 20 bytes in 120ms. (166.67 bytes / sec)
+[Spectre Variant 1]
+ ---- SETUP ---- 
+miss: 272, hit: 76, threshold: 223
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+Eviction set found!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+Eviction set found!
+
+ ---- LEAKING ----
+
+ ---- RESULT ----
+DDCAECACAC
+leaked 20 bytes in 186ms. (107.53 bytes / sec)
+[Spectre Variant 1]
+ ---- SETUP ---- 
+miss: 276, hit: 74, threshold: 226
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+Eviction set found!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+Eviction set found!
+
+ ---- LEAKING ----
+
+ ---- RESULT ----
+AA¤EDDDDEDD
+leaked 20 bytes in 174ms. (114.94 bytes / sec)
+[Spectre Variant 1]
+ ---- SETUP ---- 
+miss: 257, hit: 65, threshold: 209
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+Eviction set found!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+max retries exceeded!
+
+ ---- LEAKING ----
+
+ ---- RESULT ----
+!A
+leaked 20 bytes in 117ms. (170.94 bytes / sec)
+[Spectre Variant 1]
+ ---- SETUP ---- 
+miss: 278, hit: 58, threshold: 223
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+max retries exceeded!
+finding eviction set failed!
+finding eviction set failed!
+Eviction set found!
+
+ ---- LEAKING ----
+
+ ---- RESULT ----
+DDDDDCDDDDDdCDDDDCC4
+leaked 20 bytes in 1329ms. (15.05 bytes / sec)
+[Spectre Variant 1]
+ ---- SETUP ---- 
+miss: 306, hit: 61, threshold: 245
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+max retries exceeded!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+max retries exceeded!
+
+ ---- LEAKING ----
+
+ ---- RESULT ----
+A1
+leaked 20 bytes in 7674ms. (2.61 bytes / sec)
+[Spectre Variant 1]
+ ---- SETUP ---- 
+miss: 301, hit: 59, threshold: 240
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+max retries exceeded!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+max retries exceeded!
+
+ ---- LEAKING ----
+
+ ---- RESULT ----
+DUDCCECDCD3CE#CDD123
+leaked 20 bytes in 1078ms. (18.55 bytes / sec)
+[Spectre Variant 1]
+ ---- SETUP ---- 
+miss: 319, hit: 74, threshold: 258
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+max retries exceeded!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+max retries exceeded!
+
+ ---- LEAKING ----
+
+ ---- RESULT ----
+DDE$CATD$DN$A$DDD123
+leaked 20 bytes in 9661ms. (2.07 bytes / sec)
+[Spectre Variant 1]
+ ---- SETUP ---- 
+miss: 303, hit: 60, threshold: 243
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+max retries exceeded!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+max retries exceeded!
+
+ ---- LEAKING ----
+
+ ---- RESULT ----
+DCA$#A"3D3#A"32C1"3
+leaked 20 bytes in 9428ms. (2.12 bytes / sec)
+[Spectre Variant 1]
+ ---- SETUP ---- 
+miss: 275, hit: 56, threshold: 220
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+Eviction set found!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+Eviction set found!
+
+ ---- LEAKING ----
+
+ ---- RESULT ----
+A
+leaked 20 bytes in 180ms. (111.11 bytes / sec)
+[Spectre Variant 1]
+ ---- SETUP ---- 
+miss: 304, hit: 63, threshold: 244
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+max retries exceeded!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+max retries exceeded!
+
+ ---- LEAKING ----
+
+ ---- RESULT ----
+D"2##CC"33#!#""#2#
+leaked 20 bytes in 9416ms. (2.12 bytes / sec)
+[Spectre Variant 1]
+ ---- SETUP ---- 
+miss: 307, hit: 76, threshold: 249
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+max retries exceeded!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+max retries exceeded!
+
+ ---- LEAKING ----
+
+ ---- RESULT ----
+THe$CQDK$D3#A#CDE123
+leaked 20 bytes in 9599ms. (2.08 bytes / sec)
+[Spectre Variant 1]
+ ---- SETUP ---- 
+miss: 247, hit: 62, threshold: 201
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+finding eviction set failed!
+Eviction set found!
+Eviction set found!
+
+ ---- LEAKING ----
+
+ ---- RESULT ----
+C333333DDC343C333333
+leaked 20 bytes in 137ms. (145.99 bytes / sec)

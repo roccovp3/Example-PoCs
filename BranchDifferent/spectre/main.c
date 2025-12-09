@@ -84,7 +84,7 @@ int main(int argc, char** argv){
     /* just run small proof of concept to leak a string */
     
     char* public = "ABC";
-    char* secret = "1234567890abcd!!";
+    char* secret = "The cake is a lie123";
     
     int secret_size = strlen(secret);
     int leak_start;
